@@ -46,7 +46,7 @@ const gridConfig = {
   }
 };
 
-type SettingsTab = 'general' | 'privacy' | 'download' | 'favorite' | 'store';
+type SettingsTab = 'general' | 'privacy' | 'download' | 'favorites' | 'store';
 type ColorPalette = 'Light' | 'Gold' | 'Rose' | 'Terracotta' | 'Sand' | 'Olive' | 'Agave' | 'Sea' | 'Dark';
 
 const colorConfigs: Record<ColorPalette, { bg: string; accent: string; text: string; border: string }> = {
@@ -114,6 +114,9 @@ const [settings, setSettings] = useState({
   download_pin: '6408',
   allow_high_res: true,
   allow_web_size: true,
+  enable_favorites: true,
+  require_email_favorites: false,
+  allow_favorite_notes: true,
 });
 const saveGeneralSettings = async () => {
   try {
@@ -142,6 +145,9 @@ const saveGeneralSettings = async () => {
       download_pin: settings.download_pin,
       allow_high_res: settings.allow_high_res,
       allow_web_size: settings.allow_web_size,
+      enable_favorites: settings.enable_favorites,
+      require_email_favorites: settings.require_email_favorites,
+      allow_favorite_notes: settings.allow_favorite_notes,
     };
 
     // 2. MISE À JOUR BASE DE DONNÉES
@@ -234,6 +240,9 @@ const handleSettingChange = (key: string, value: any) => {
       download_pin: g.theme?.download_pin || '',
       allow_high_res: g.theme?.allow_high_res ?? true,
       allow_web_size: g.theme?.allow_web_size ?? true,
+      enable_favorites: g.theme?.enable_favorites ?? true,
+      require_email_favorites: g.theme?.require_email_favorites ?? false,
+      allow_favorite_notes: g.theme?.allow_favorite_notes ?? true,
     });
 
     // 2. CHARGEMENT DU DESIGN (Typo + Grid + CoverStyle)
@@ -838,8 +847,7 @@ const handleSettingChange = (key: string, value: any) => {
           { id: 'general', label: 'Général', icon: <Settings size={18} /> },
           { id: 'privacy', label: 'Confidentialité', icon: <Eye size={18} /> },
           { id: 'download', label: 'Téléchargement', icon: <Download size={18} />, badge: 'ON' },
-          { id: 'favorite', label: 'Favoris', icon: <Heart size={18} />, badge: 'ON' },
-          { id: 'store', label: 'Boutique', icon: <Play size={18} className="rotate-90" />, badge: 'OFF' },
+          { id: 'favorites', label: 'Favoris', icon: <Heart size={18} />, badge: 'ON' },
         ].map((item) => (
           <button 
             key={item.id}
@@ -858,7 +866,7 @@ const handleSettingChange = (key: string, value: any) => {
             </div>
             {item.badge && (
               <span className={`text-[8px] px-2 py-0.5 rounded-full font-black ${
-                item.badge === 'ON' ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'
+                item.badge === 'ON' ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-500'
               }`}>
                 {item.badge}
               </span>
@@ -995,7 +1003,7 @@ const handleSettingChange = (key: string, value: any) => {
           </div>
           <div 
             onClick={() => handleSettingChange('is_protected', !settings.is_protected)}
-            className={`w-12 h-6 rounded-full relative cursor-pointer transition-all duration-300 ${settings.is_protected ? 'bg-emerald-500' : 'bg-gray-200'}`}
+            className={`w-12 h-6 rounded-full relative cursor-pointer transition-all duration-300 ${settings.is_protected ? 'bg-orange-600' : 'bg-gray-200'}`}
           >
             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${settings.is_protected ? 'right-1' : 'left-1'}`} />
           </div>
@@ -1010,11 +1018,11 @@ const handleSettingChange = (key: string, value: any) => {
                 placeholder="Définir le mot de passe"
                 value={settings.password}
                 onChange={(e) => handleSettingChange('password', e.target.value)}
-                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl px-4 py-4 text-sm font-mono outline-none focus:border-emerald-500 pr-24"
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl px-4 py-4 text-sm font-mono outline-none focus:text-orange-600 pr-24"
               />
               <button 
                 onClick={() => handleSettingChange('password', Math.random().toString(36).slice(-8).toUpperCase())}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-emerald-600 hover:text-emerald-700"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-orange-600 hover:text-orange-400"
               >
                 Générer
               </button>
@@ -1035,7 +1043,7 @@ const handleSettingChange = (key: string, value: any) => {
           </div>
           <div 
              onClick={() => handleSettingChange('show_on_homepage', !settings.show_on_homepage)}
-             className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.show_on_homepage ? 'bg-emerald-500' : 'bg-gray-200'}`}
+             className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.show_on_homepage ? 'bg-orange-600' : 'bg-gray-200'}`}
           >
             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.show_on_homepage ? 'right-1' : 'left-1'}`} />
           </div>
@@ -1049,7 +1057,7 @@ const handleSettingChange = (key: string, value: any) => {
   <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 pb-20">
     <div>
       <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2">Téléchargement</h2>
-      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-emerald-600">Gestion des fichiers sortants</p>
+      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-orange-600">Gestion des fichiers sortants</p>
     </div>
 
     <div className="space-y-10">
@@ -1061,7 +1069,7 @@ const handleSettingChange = (key: string, value: any) => {
         </div>
         <div 
           onClick={() => handleSettingChange('enable_download', !settings.enable_download)}
-          className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.enable_download ? 'bg-emerald-500' : 'bg-gray-200'}`}
+          className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.enable_download ? 'bg-orange-500' : 'bg-gray-200'}`}
         >
           <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.enable_download ? 'right-1' : 'left-1'}`} />
         </div>
@@ -1079,7 +1087,7 @@ const handleSettingChange = (key: string, value: any) => {
                   type="checkbox" 
                   checked={settings.allow_high_res}
                   onChange={(e) => handleSettingChange('allow_high_res', e.target.checked)}
-                  className="w-4 h-4 accent-emerald-500"
+                  className="w-4 h-4 accent-orange-500"
                 />
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black uppercase tracking-widest">Haute Résolution</span>
@@ -1092,7 +1100,7 @@ const handleSettingChange = (key: string, value: any) => {
                   type="checkbox" 
                   checked={settings.allow_web_size}
                   onChange={(e) => handleSettingChange('allow_web_size', e.target.checked)}
-                  className="w-4 h-4 accent-emerald-500"
+                  className="w-4 h-4 accent-orange-500"
                 />
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black uppercase tracking-widest">Format Web</span>
@@ -1111,7 +1119,7 @@ const handleSettingChange = (key: string, value: any) => {
               </div>
               <div 
                 onClick={() => handleSettingChange('download_pin_enabled', !settings.download_pin_enabled)}
-                className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.download_pin_enabled ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.download_pin_enabled ? 'bg-orange-500' : 'bg-gray-200'}`}
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.download_pin_enabled ? 'right-1' : 'left-1'}`} />
               </div>
@@ -1124,11 +1132,11 @@ const handleSettingChange = (key: string, value: any) => {
                   maxLength={4}
                   value={settings.download_pin}
                   onChange={(e) => handleSettingChange('download_pin', e.target.value.replace(/\D/g,''))}
-                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl px-4 py-4 text-2xl font-mono font-black tracking-[0.5em] text-center outline-none focus:border-emerald-500"
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl px-4 py-4 text-2xl font-mono font-black tracking-[0.5em] text-center outline-none focus:border-orange-500"
                 />
                 <button 
                   onClick={() => handleSettingChange('download_pin', Math.floor(1000 + Math.random() * 9000).toString())}
-                  className="mt-2 text-[9px] font-black uppercase text-emerald-600 hover:underline w-full text-center"
+                  className="mt-2 text-[9px] font-black uppercase text-orange-600 hover:underline w-full text-center"
                 >
                   Générer un PIN
                 </button>
@@ -1136,6 +1144,63 @@ const handleSettingChange = (key: string, value: any) => {
             )}
           </div>
 
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{settingsTab === 'favorites' && (
+  <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 pb-20">
+    <div>
+      <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2">Favoris</h2>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-orange-600">Sélection et choix des clients</p>
+    </div>
+
+    <div className="space-y-10">
+      {/* Activer les favoris */}
+      <div className="flex items-center justify-between max-w-md">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-black uppercase tracking-widest text-gray-700">Liste de favoris</label>
+          <p className="text-[9px] text-gray-400 uppercase">Permettre aux visiteurs de créer une sélection</p>
+        </div>
+        <div 
+          onClick={() => handleSettingChange('enable_favorites', !settings.enable_favorites)}
+          className={`w-12 h-6 rounded-full relative cursor-pointer transition-all duration-300 ${settings.enable_favorites ? 'bg-orange-600' : 'bg-gray-200'}`}
+        >
+          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${settings.enable_favorites ? 'right-1' : 'left-1'}`} />
+        </div>
+      </div>
+
+      {settings.enable_favorites && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          {/* Email requis */}
+          <div className="flex items-center justify-between max-w-md p-5 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-black uppercase tracking-widest">Identification par email</span>
+              <p className="text-[9px] text-gray-400 uppercase">Requis pour sauvegarder la liste</p>
+            </div>
+            <div 
+               onClick={() => handleSettingChange('require_email_favorites', !settings.require_email_favorites)}
+               className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.require_email_favorites ? 'bg-orange-600' : 'bg-gray-200'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.require_email_favorites ? 'right-1' : 'left-1'}`} />
+            </div>
+          </div>
+
+          {/* Notes sur favoris */}
+          <div className="flex items-center justify-between max-w-md p-5 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-black uppercase tracking-widest">Notes et commentaires</span>
+              <p className="text-[9px] text-gray-400 uppercase">Autoriser les notes sur chaque photo</p>
+            </div>
+            <div 
+               onClick={() => handleSettingChange('allow_favorite_notes', !settings.allow_favorite_notes)}
+               className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${settings.allow_favorite_notes ? 'bg-orange-600' : 'bg-gray-200'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.allow_favorite_notes ? 'right-1' : 'left-1'}`} />
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1150,7 +1215,7 @@ const handleSettingChange = (key: string, value: any) => {
           <button 
             onClick={saveGeneralSettings}
             disabled={uploading}
-            className="pointer-events-auto bg-black dark:bg-white text-white dark:text-black px-16 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(0,0,0,0.2)] hover:scale-105 transition-all mb-4 flex items-center gap-3"
+            className="pointer-events-auto bg-orange-600 dark:bg-white text-white dark:text-black px-16 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(0,0,0,0.2)] hover:scale-105 transition-all mb-4 flex items-center gap-3"
           >
             {uploading && <Loader2 size={14} className="animate-spin" />}
             Enregistrer les modifications
@@ -1163,6 +1228,7 @@ const handleSettingChange = (key: string, value: any) => {
             <h2 className="text-4xl font-black italic uppercase tracking-tighter opacity-20">Contenu {activeTab}</h2>
           </div>
           )}
+          
         </main>
       </div>
 
