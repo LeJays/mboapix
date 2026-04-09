@@ -1227,7 +1227,8 @@ const handleSettingChange = (key: string, value: any) => {
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <h2 className="text-4xl font-black italic uppercase tracking-tighter opacity-20">Contenu {activeTab}</h2>
           </div>
-          )}
+         
+         )}
           
         </main>
       </div>
