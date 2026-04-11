@@ -117,6 +117,9 @@ const [settings, setSettings] = useState({
   enable_favorites: true,
   require_email_favorites: false,
   allow_favorite_notes: true,
+  allow_wa_share: true,
+  allow_fb_share: true,
+  show_qr_code: true,
 });
 const saveGeneralSettings = async () => {
   try {
@@ -222,28 +225,33 @@ const handleSettingChange = (key: string, value: any) => {
     // 1. INITIALISATION DES RÉGLAGES GÉNÉRAUX (Settings)
     // On extrait les valeurs du JSONB 'theme' ou on met des valeurs par défaut
     setSettings({
-      slug: g.slug || '',
-      category_tags: g.theme?.category_tags || '',
-      watermark: g.theme?.watermark || 'Pas de filigrane',
-      expiration_date: g.theme?.expiration_date || '',
-      email_registration: g.theme?.email_registration || false,
-      gallery_help: g.theme?.gallery_help || false,
-      slideshow: g.theme?.slideshow || false,
-      social_sharing: g.theme?.social_sharing ?? true,
-      language: g.theme?.language || 'Français',
-      // AJOUT DES CHAMPS DE CONFIDENTIALITÉ ET VISIBILITÉ
-      is_protected: g.is_protected || false,       // Vient de la colonne SQL
-      password: g.password || '',                   // Vient de la colonne SQL
-      show_on_homepage: g.theme?.show_on_homepage ?? true ,// Vient du JSON theme
-      enable_download: g.theme?.enable_download ?? true,
-      download_pin_enabled: g.theme?.download_pin_enabled ?? false,
-      download_pin: g.theme?.download_pin || '',
-      allow_high_res: g.theme?.allow_high_res ?? true,
-      allow_web_size: g.theme?.allow_web_size ?? true,
-      enable_favorites: g.theme?.enable_favorites ?? true,
-      require_email_favorites: g.theme?.require_email_favorites ?? false,
-      allow_favorite_notes: g.theme?.allow_favorite_notes ?? true,
-    });
+  slug: g.slug || '',
+  category_tags: g.theme?.category_tags || '',
+  watermark: g.theme?.watermark || 'Pas de filigrane',
+  expiration_date: g.theme?.expiration_date || '',
+  email_registration: g.theme?.email_registration || false,
+  gallery_help: g.theme?.gallery_help || false,
+  slideshow: g.theme?.slideshow || false,
+  social_sharing: g.theme?.social_sharing ?? true,
+  
+  // NOUVEAUX CHAMPS À AJOUTER POUR CORRIGER L'ERREUR
+  allow_wa_share: g.theme?.allow_wa_share ?? true,
+  allow_fb_share: g.theme?.allow_fb_share ?? true,
+  show_qr_code: g.theme?.show_qr_code ?? true,
+
+  language: g.theme?.language || 'Français',
+  is_protected: g.is_protected || false,
+  password: g.password || '',
+  show_on_homepage: g.theme?.show_on_homepage ?? true,
+  enable_download: g.theme?.enable_download ?? true,
+  download_pin_enabled: g.theme?.download_pin_enabled ?? false,
+  download_pin: g.theme?.download_pin || '',
+  allow_high_res: g.theme?.allow_high_res ?? true,
+  allow_web_size: g.theme?.allow_web_size ?? true,
+  enable_favorites: g.theme?.enable_favorites ?? true,
+  require_email_favorites: g.theme?.require_email_favorites ?? false,
+  allow_favorite_notes: g.theme?.allow_favorite_notes ?? true,
+});
 
     // 2. CHARGEMENT DU DESIGN (Typo + Grid + CoverStyle)
     if (g.theme) {
@@ -1223,7 +1231,156 @@ const handleSettingChange = (key: string, value: any) => {
         </div>
 
   </div> // FERME LE CONTENEUR FLEX DES SETTINGS
-          ) :(
+          ) : activeTab === 'share' ? (
+  <div className="flex flex-col lg:flex-row h-full animate-in fade-in duration-500 overflow-hidden">
+    {/* MENU GAUCHE : CONFIGURATION DES ACTIVITÉS */}
+    <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-gray-100 dark:border-white/5 bg-white dark:bg-[#080808] p-6 lg:p-8 overflow-y-auto shrink-0">
+      <div className="mb-10">
+        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">Activités & Partage</h2>
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Interactions de la galerie</p>
+      </div>
+
+      <div className="space-y-8 pb-20">
+        
+        {/* SECTION : SYSTÈME */}
+        <div className="space-y-4">
+          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-600 ml-1">Système & Accès</label>
+          
+          {/* Email Registration */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-black uppercase tracking-widest">Enregistrement Email</span>
+              <p className="text-[8px] text-gray-400 uppercase">Obligatoire pour voir les photos</p>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.email_registration}
+              onChange={(e) => handleSettingChange('email_registration', e.target.checked)}
+              className="w-4 h-4 accent-orange-600"
+            />
+          </div>
+
+          {/* Private Photos */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-black uppercase tracking-widest">Photos Privées</span>
+              <p className="text-[8px] text-gray-400 uppercase">Masquer les photos sensibles</p>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.is_protected}
+              onChange={(e) => handleSettingChange('is_protected', e.target.checked)}
+              className="w-4 h-4 accent-orange-600"
+            />
+          </div>
+        </div>
+
+        {/* SECTION : ACTIONS CLIENTS */}
+        <div className="space-y-4">
+          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-600 ml-1">Actions autorisées</label>
+          
+          {/* Download Activity */}
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10 transition-all">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg"><Download size={14} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest">Téléchargements</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.enable_download}
+              onChange={(e) => handleSettingChange('enable_download', e.target.checked)}
+              className="w-4 h-4 accent-orange-600"
+            />
+          </div>
+
+          {/* Favorite Activity */}
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10 transition-all">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg"><Heart size={14} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest">Favoris & Sélection</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.enable_favorites}
+              onChange={(e) => handleSettingChange('enable_favorites', e.target.checked)}
+              className="w-4 h-4 accent-orange-600"
+            />
+          </div>
+
+          {/* Store Orders */}
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10 transition-all">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg"><Plus size={14} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest">Boutique / Commandes</span>
+            </div>
+            <input 
+              type="checkbox" 
+              className="w-4 h-4 accent-orange-600"
+            />
+          </div>
+        </div>
+
+        <button 
+          onClick={saveGeneralSettings}
+          className="w-full bg-orange-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-orange-600/20 hover:scale-[1.02] transition-all"
+        >
+          Enregistrer les activités
+        </button>
+      </div>
+    </div>
+
+    {/* APERÇU DROITE : QUICK SHARE & VISUALISATION */}
+    <div className="flex-1 bg-gray-50 dark:bg-[#030303] p-6 lg:p-12 flex flex-col items-center overflow-y-auto scrollbar-hide">
+      <div className="w-full max-w-2xl space-y-8">
+        
+        {/* CARD : QUICK SHARE LINKS */}
+        <div className="bg-white dark:bg-[#080808] p-8 rounded-[32px] border border-gray-100 dark:border-white/5 shadow-sm">
+          <div className="mb-6">
+            <h3 className="text-sm font-black uppercase italic tracking-widest">Quick Share Links</h3>
+            <p className="text-[9px] text-gray-400 uppercase tracking-widest">Partagez rapidement le lien de la galerie</p>
+          </div>
+          
+          <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
+            <div className="flex-1 px-3 text-[10px] font-mono truncate text-gray-500">
+              mboapix.com/gallery/{settings.slug}
+            </div>
+            <button className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-700 transition-colors">
+              Copier
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <button className="flex flex-col items-center justify-center p-4 bg-green-500/5 hover:bg-green-500/10 border border-green-500/10 rounded-2xl transition-all group">
+              <Share2 size={18} className="text-green-500 mb-2 group-hover:scale-110 transition-transform" />
+              <span className="text-[8px] font-black uppercase text-green-600">WhatsApp</span>
+            </button>
+            <button className="flex flex-col items-center justify-center p-4 bg-blue-600/5 hover:bg-blue-600/10 border border-blue-600/10 rounded-2xl transition-all group">
+              <Share size={18} className="text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+              <span className="text-[8px] font-black uppercase text-blue-600">Facebook</span>
+            </button>
+            <button className="flex flex-col items-center justify-center p-4 bg-orange-600/5 hover:bg-orange-600/10 border border-orange-600/10 rounded-2xl transition-all group">
+              <Plus size={18} className="text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
+              <span className="text-[8px] font-black uppercase text-orange-600">QR Code</span>
+            </button>
+          </div>
+        </div>
+
+        {/* STATS RAPIDES (Simulation d'activité) */}
+        <div className="grid grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-[#080808] p-6 rounded-[32px] border border-gray-100 dark:border-white/5">
+            <span className="text-[8px] font-black uppercase text-gray-400 tracking-[0.2em]">Vues Totales</span>
+            <div className="text-2xl font-black italic text-orange-600 mt-1">1,284</div>
+          </div>
+          <div className="bg-white dark:bg-[#080808] p-6 rounded-[32px] border border-gray-100 dark:border-white/5">
+            <span className="text-[8px] font-black uppercase text-gray-400 tracking-[0.2em]">Favoris</span>
+            <div className="text-2xl font-black italic text-orange-600 mt-1">42</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+):(
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <h2 className="text-4xl font-black italic uppercase tracking-tighter opacity-20">Contenu {activeTab}</h2>
           </div>
