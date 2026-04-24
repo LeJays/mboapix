@@ -1,13 +1,18 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
+import { NodeHttpHandler } from "@aws-sdk/node-http-handler";
 
 const s3 = new S3Client({
   endpoint: `https://${process.env.NEXT_PUBLIC_B2_ENDPOINT}`,
+  region: process.env.NEXT_PUBLIC_B2_REGION,
   credentials: {
     accessKeyId: process.env.B2_KEY_ID!,
     secretAccessKey: process.env.B2_APPLICATION_KEY!,
   },
-  region: process.env.NEXT_PUBLIC_B2_REGION,
+  requestHandler: new NodeHttpHandler({
+    connectionTimeout: 20000, // 20s pour établir connexion
+    socketTimeout: 40000,     // 40s pour télécharger
+  }),
 });
 
 // Note l'utilisation de Promise pour les params

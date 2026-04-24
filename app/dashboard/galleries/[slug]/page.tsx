@@ -91,6 +91,7 @@ export default function GalleryManagePage() {
   const [updatingCover, setUpdatingCover] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [isToastVisible, setIsToastVisible] = useState(false)
+  const [fullScreenPreview, setFullScreenPreview] = useState(false)
   
   // Près de tes autres useState
 const [settings, setSettings] = useState({
@@ -442,6 +443,14 @@ const handleSettingChange = (key: string, value: any) => {
       setUploading(false);
     }
   };
+  const handlePreview = () => {
+  if (settings.slug) {
+    // window.open ouvre l'URL dans un nouvel onglet
+    window.open(`/gallery/${settings.slug}?preview=true`, '_blank');
+  } else {
+    alert("Veuillez d'abord configurer un slug dans l'onglet général.");
+  }
+};
 
   return (
     <div className="h-screen bg-white dark:bg-[#050505] flex flex-col text-gray-900 dark:text-white relative font-sans overflow-hidden">
@@ -462,9 +471,13 @@ const handleSettingChange = (key: string, value: any) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => window.open(`/gallery/${slug}`, '_blank')} className="p-2 text-gray-400 hover:text-orange-600 transition-colors">
-            <Eye size={18} />
-          </button>
+          <button 
+  onClick={handlePreview}
+  className="p-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl hover:scale-110 transition-all group"
+  title="Prévisualiser la galerie"
+>
+  <Eye size={18} className="group-hover:text-orange-600 transition-colors" />
+</button>
           <button className="bg-orange-600 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-700 transition-colors">
             Publier
           </button>
@@ -1233,151 +1246,103 @@ const handleSettingChange = (key: string, value: any) => {
   </div> // FERME LE CONTENEUR FLEX DES SETTINGS
           ) : activeTab === 'share' ? (
   <div className="flex flex-col lg:flex-row h-full animate-in fade-in duration-500 overflow-hidden">
-    {/* MENU GAUCHE : CONFIGURATION DES ACTIVITÉS */}
+    
+    {/* MENU DE NAVIGATION DES ACTIVITÉS (GAUCHE) */}
     <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-gray-100 dark:border-white/5 bg-white dark:bg-[#080808] p-6 lg:p-8 overflow-y-auto shrink-0">
       <div className="mb-10">
-        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">Activités & Partage</h2>
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Interactions de la galerie</p>
+        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">Activités</h2>
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Suivi des interactions clients</p>
       </div>
 
-      <div className="space-y-8 pb-20">
-        
-        {/* SECTION : SYSTÈME */}
-        <div className="space-y-4">
-          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-600 ml-1">Système & Accès</label>
-          
-          {/* Email Registration */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-black uppercase tracking-widest">Enregistrement Email</span>
-              <p className="text-[8px] text-gray-400 uppercase">Obligatoire pour voir les photos</p>
+      <div className="space-y-3 pb-20">
+        {[
+          { id: 'downloads', label: 'Download Activity', desc: 'Photos téléchargées par les clients', icon: <Download size={14}/>, count: '124' },
+          { id: 'favorites', label: 'Favorite Activity', desc: 'Sélections et coups de cœur', icon: <Heart size={14}/>, count: '48' },
+          { id: 'orders', label: 'Store Orders', desc: 'Commandes de tirages photos', icon: <Plus size={14}/>, count: '03' },
+          { id: 'emails', label: 'Email Registration', desc: 'Base de données des visiteurs', icon: <Type size={14}/>, count: '85' },
+          { id: 'quick_share', label: 'Quick Share Links', desc: 'Stats de partage réseaux sociaux', icon: <Share2 size={14}/>, count: '12' },
+          { id: 'private_logs', label: 'Private Photos', desc: 'Accès aux contenus protégés', icon: <Eye size={14}/>, count: '07' },
+        ].map((item) => (
+          <button 
+            key={item.id} 
+            // Ici tu créeras un état 'activeActivity' pour changer l'affichage à droite
+            className="w-full flex items-center justify-between p-4 bg-white dark:bg-white/2 rounded-[22px] border border-gray-100 dark:border-white/5 hover:border-orange-600/40 transition-all group"
+          >
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 bg-orange-600/10 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                {item.icon}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">{item.label}</span>
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">{item.desc}</p>
+              </div>
             </div>
-            <input 
-              type="checkbox" 
-              checked={settings.email_registration}
-              onChange={(e) => handleSettingChange('email_registration', e.target.checked)}
-              className="w-4 h-4 accent-orange-600"
-            />
-          </div>
 
-          {/* Private Photos */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-black uppercase tracking-widest">Photos Privées</span>
-              <p className="text-[8px] text-gray-400 uppercase">Masquer les photos sensibles</p>
+            {/* Badge de compteur */}
+            <div className="bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-full">
+               <span className="text-[10px] font-black italic text-orange-600">{item.count}</span>
             </div>
-            <input 
-              type="checkbox" 
-              checked={settings.is_protected}
-              onChange={(e) => handleSettingChange('is_protected', e.target.checked)}
-              className="w-4 h-4 accent-orange-600"
-            />
-          </div>
-        </div>
-
-        {/* SECTION : ACTIONS CLIENTS */}
-        <div className="space-y-4">
-          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-600 ml-1">Actions autorisées</label>
-          
-          {/* Download Activity */}
-          <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg"><Download size={14} /></div>
-              <span className="text-[10px] font-black uppercase tracking-widest">Téléchargements</span>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={settings.enable_download}
-              onChange={(e) => handleSettingChange('enable_download', e.target.checked)}
-              className="w-4 h-4 accent-orange-600"
-            />
-          </div>
-
-          {/* Favorite Activity */}
-          <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg"><Heart size={14} /></div>
-              <span className="text-[10px] font-black uppercase tracking-widest">Favoris & Sélection</span>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={settings.enable_favorites}
-              onChange={(e) => handleSettingChange('enable_favorites', e.target.checked)}
-              className="w-4 h-4 accent-orange-600"
-            />
-          </div>
-
-          {/* Store Orders */}
-          <div className="flex items-center justify-between p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg"><Plus size={14} /></div>
-              <span className="text-[10px] font-black uppercase tracking-widest">Boutique / Commandes</span>
-            </div>
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-orange-600"
-            />
-          </div>
-        </div>
-
-        <button 
-          onClick={saveGeneralSettings}
-          className="w-full bg-orange-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-orange-600/20 hover:scale-[1.02] transition-all"
-        >
-          Enregistrer les activités
-        </button>
+          </button>
+        ))}
       </div>
     </div>
 
-    {/* APERÇU DROITE : QUICK SHARE & VISUALISATION */}
-    <div className="flex-1 bg-gray-50 dark:bg-[#030303] p-6 lg:p-12 flex flex-col items-center overflow-y-auto scrollbar-hide">
-      <div className="w-full max-w-2xl space-y-8">
-        
-        {/* CARD : QUICK SHARE LINKS */}
-        <div className="bg-white dark:bg-[#080808] p-8 rounded-[32px] border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="mb-6">
-            <h3 className="text-sm font-black uppercase italic tracking-widest">Quick Share Links</h3>
-            <p className="text-[9px] text-gray-400 uppercase tracking-widest">Partagez rapidement le lien de la galerie</p>
-          </div>
-          
-          <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
-            <div className="flex-1 px-3 text-[10px] font-mono truncate text-gray-500">
-              mboapix.com/gallery/{settings.slug}
-            </div>
-            <button className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-700 transition-colors">
-              Copier
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <button className="flex flex-col items-center justify-center p-4 bg-green-500/5 hover:bg-green-500/10 border border-green-500/10 rounded-2xl transition-all group">
-              <Share2 size={18} className="text-green-500 mb-2 group-hover:scale-110 transition-transform" />
-              <span className="text-[8px] font-black uppercase text-green-600">WhatsApp</span>
-            </button>
-            <button className="flex flex-col items-center justify-center p-4 bg-blue-600/5 hover:bg-blue-600/10 border border-blue-600/10 rounded-2xl transition-all group">
-              <Share size={18} className="text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
-              <span className="text-[8px] font-black uppercase text-blue-600">Facebook</span>
-            </button>
-            <button className="flex flex-col items-center justify-center p-4 bg-orange-600/5 hover:bg-orange-600/10 border border-orange-600/10 rounded-2xl transition-all group">
-              <Plus size={18} className="text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
-              <span className="text-[8px] font-black uppercase text-orange-600">QR Code</span>
-            </button>
-          </div>
+    {/* AFFICHAGE DES DONNÉES (DROITE) */}
+    <div className="flex-1 bg-gray-50 dark:bg-[#030303] p-6 lg:p-12 flex flex-col overflow-y-auto">
+      
+      {/* HEADER DE LA SECTION SÉLECTIONNÉE */}
+      <div className="flex justify-between items-end mb-10">
+        <div className="space-y-2">
+          <p className="text-[10px] text-orange-600 font-black uppercase tracking-[0.3em]">Détails du log</p>
+          <h3 className="text-4xl font-black italic uppercase tracking-tighter">Download Activity</h3>
         </div>
-
-        {/* STATS RAPIDES (Simulation d'activité) */}
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-[#080808] p-6 rounded-[32px] border border-gray-100 dark:border-white/5">
-            <span className="text-[8px] font-black uppercase text-gray-400 tracking-[0.2em]">Vues Totales</span>
-            <div className="text-2xl font-black italic text-orange-600 mt-1">1,284</div>
-          </div>
-          <div className="bg-white dark:bg-[#080808] p-6 rounded-[32px] border border-gray-100 dark:border-white/5">
-            <span className="text-[8px] font-black uppercase text-gray-400 tracking-[0.2em]">Favoris</span>
-            <div className="text-2xl font-black italic text-orange-600 mt-1">42</div>
-          </div>
-        </div>
-
+        <button className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 hover:text-white transition-all">
+          Exporter CSV
+        </button>
       </div>
+
+      {/* TABLEAU DE DONNÉES (Exemple pour les emails ou téléchargements) */}
+      <div className="bg-white dark:bg-[#080808] rounded-[35px] border border-gray-100 dark:border-white/5 overflow-hidden shadow-xl">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-white/5 text-[9px] font-black uppercase tracking-widest text-gray-400">
+              <th className="p-6">Utilisateur / Email</th>
+              <th className="p-6">Action</th>
+              <th className="p-6">Date</th>
+              <th className="p-6 text-right">Fichier</th>
+            </tr>
+          </thead>
+          <tbody className="text-[10px] font-bold uppercase">
+            {[1, 2, 3, 4, 5].map((row) => (
+              <tr key={row} className="border-b border-gray-50 dark:border-white/2 hover:bg-gray-50 dark:hover:bg-white/2 transition-colors">
+                <td className="p-6">james.w@mboapix.com</td>
+                <td className="p-6">
+                  <span className="bg-green-500/10 text-green-600 px-3 py-1 rounded-lg text-[8px]">High-Res Download</span>
+                </td>
+                <td className="p-6 text-gray-400">Il y a 2 heures</td>
+                <td className="p-6 text-right font-mono text-orange-600">DSC_0{row}42.JPG</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* RÉSUMÉ RAPIDE EN BAS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div className="p-8 bg-orange-600 rounded-[30px] text-white shadow-xl shadow-orange-600/20">
+          <p className="text-[9px] font-black uppercase opacity-60 tracking-widest">Total Downloads</p>
+          <p className="text-3xl font-black italic tracking-tighter">1,284</p>
+        </div>
+        <div className="p-8 bg-white dark:bg-[#080808] rounded-[30px] border border-gray-100 dark:border-white/5">
+          <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Utilisateurs uniques</p>
+          <p className="text-3xl font-black italic tracking-tighter">42</p>
+        </div>
+        <div className="p-8 bg-white dark:bg-[#080808] rounded-[30px] border border-gray-100 dark:border-white/5">
+          <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Espace utilisé</p>
+          <p className="text-3xl font-black italic tracking-tighter">2.4 GB</p>
+        </div>
+      </div>
+
     </div>
   </div>
 ):(
@@ -1442,6 +1407,145 @@ const handleSettingChange = (key: string, value: any) => {
                 {uploading ? <Loader2 size={16} className="text-orange-600 animate-spin" /> : <Check size={16} className="text-green-500" />}
             </div>
             <span className="text-[10px] font-black uppercase tracking-widest">{uploading ? "Envoi en cours..." : "Photos ajoutées !"}</span>
+          </div>
+        </div>
+      )}
+    
+    {/* --- MODAL PREVIEW PLEIN ÉCRAN --- */}
+      {fullScreenPreview && (
+        <div className="fixed inset-0 z-[200] bg-gray-50 dark:bg-[#030303] flex flex-col animate-in fade-in duration-300">
+          
+          {/* Barre de contrôle supérieure */}
+          <header className="h-16 border-b border-gray-100 dark:border-white/5 px-6 flex items-center justify-between bg-white dark:bg-[#080808] shrink-0">
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest bg-orange-600 text-white animate-pulse`}>
+                Mode Aperçu
+              </div>
+              <h2 className="text-[11px] font-black uppercase tracking-widest text-gray-400">
+                {gallery?.event_name}
+              </h2>
+            </div>
+            <button 
+              onClick={() => setFullScreenPreview(false)}
+              className="flex items-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+            >
+              <X size={16} strokeWidth={3} />
+              Quitter l'aperçu
+            </button>
+          </header>
+
+          {/* Zone d'aperçu (Copie exacte de ta logique de l'onglet Design) */}
+          <div className="flex-1 p-6 lg:p-12 flex flex-col items-center overflow-y-auto scrollbar-hide">
+            
+            {/* LE SITE PUBLIC SIMULÉ */}
+            <div 
+              className="w-full max-w-7xl min-h-[90vh] shadow-2xl overflow-hidden flex flex-col border transition-all duration-700 mb-20 rounded-3xl"
+              style={{ 
+                backgroundColor: colorConfigs[palette].bg, 
+                color: colorConfigs[palette].text,
+                borderColor: colorConfigs[palette].border 
+              }}
+            >
+              {/* BARRE DÉCO NAVIGATEUR */}
+              <div className="h-8 border-b flex items-center px-4 gap-1.5 shrink-0" style={{ borderColor: colorConfigs[palette].border }}>
+                <div className="w-2 h-2 rounded-full opacity-20" style={{ backgroundColor: colorConfigs[palette].text }} />
+                <div className="w-2 h-2 rounded-full opacity-20" style={{ backgroundColor: colorConfigs[palette].text }} />
+                <div className="w-2 h-2 rounded-full opacity-20" style={{ backgroundColor: colorConfigs[palette].text }} />
+              </div>
+
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-10">
+                {/* 1. SECTION COUVERTURE (Logique conservée) */}
+                {coverStyle !== 'None' && (
+                  <div className={`relative w-full transition-all duration-700 ease-in-out mb-16
+                    ${['Center', 'Left', 'Stripe', 'Outline', 'Classic', 'Love'].includes(coverStyle) ? 'h-[80vh]' : ''}
+                    ${coverStyle === 'Novel' ? 'h-[70vh] flex flex-row-reverse' : ''}
+                    ${coverStyle === 'Vintage' ? 'h-[85vh] flex flex-col' : ''}
+                    ${coverStyle === 'Frame' ? 'h-[80vh] p-10' : ''}
+                    ${coverStyle === 'Divider' ? 'h-[80vh] flex' : ''}
+                    ${coverStyle === 'Journal' ? 'h-[80vh] flex p-12 gap-12' : ''}
+                    ${coverStyle === 'Stamp' ? 'h-[70vh] flex flex-col items-center justify-center' : ''}
+                  `}>
+                    <div className={`relative overflow-hidden transition-all duration-700
+                      ${['Center', 'Left', 'Stripe', 'Outline', 'Classic', 'Love', 'Stamp'].includes(coverStyle) ? 'w-full h-full' : ''}
+                      ${coverStyle === 'Novel' ? 'w-1/2 h-full' : ''}
+                      ${coverStyle === 'Vintage' ? 'w-full h-3/4' : ''}
+                      ${coverStyle === 'Frame' ? 'w-full h-full shadow-2xl' : ''}
+                      ${coverStyle === 'Divider' ? 'w-1/2 h-full' : ''}
+                      ${coverStyle === 'Journal' ? 'w-2/3 h-full' : ''}
+                    `}>
+                      {gallery?.cover_url && <img src={gallery.cover_url} className="w-full h-full object-cover" alt="" />}
+                      <div className={`absolute inset-0 flex items-center p-12
+                        ${coverStyle === 'Center' ? 'justify-center text-center bg-black/20' : ''}
+                        ${coverStyle === 'Left' ? 'justify-start text-left bg-black/10' : ''}
+                        ${coverStyle === 'Stripe' ? 'justify-center text-center border-y-4 border-white/30 m-20 bg-black/20' : ''}
+                        ${coverStyle === 'Outline' ? 'justify-center text-center' : ''}
+                        ${coverStyle === 'Love' ? 'justify-center text-center bg-white/10 backdrop-blur-[2px]' : ''}
+                      `}>
+                        {['Center', 'Left', 'Stripe', 'Outline', 'Classic', 'Frame'].includes(coverStyle) && (
+                          <div className={coverStyle === 'Outline' ? 'border-2 border-white p-10' : ''}>
+                            <h4 className={`text-white uppercase drop-shadow-2xl ${typographyConfig[typography]} ${coverStyle === 'Outline' ? 'text-5xl' : 'text-6xl'}`}>
+                              {gallery?.event_name}
+                            </h4>
+                          </div>
+                        )}
+                        {coverStyle === 'Love' && <h4 className={`text-white uppercase text-[12vw] leading-none opacity-90 drop-shadow-2xl ${typographyConfig[typography]}`}>LOVE</h4>}
+                      </div>
+                    </div>
+
+                    {['Novel', 'Vintage', 'Divider', 'Journal', 'Stamp'].includes(coverStyle) && (
+                      <div className="flex flex-col items-center justify-center p-10 transition-colors" style={{ width: coverStyle === 'Novel' || coverStyle === 'Divider' ? '50%' : '100%', height: coverStyle === 'Vintage' ? '25%' : '100%' }}>
+                        {coverStyle === 'Stamp' && <div className="w-16 h-16 overflow-hidden mb-4 border-2 p-1" style={{ borderColor: colorConfigs[palette].accent }}><img src={gallery?.cover_url} className="w-full h-full object-cover" /></div>}
+                        <h4 className={`uppercase ${typographyConfig[typography]} ${coverStyle === 'Journal' ? 'text-4xl' : 'text-5xl'}`}>{gallery?.event_name}</h4>
+                        <div className="w-12 h-1 mt-4" style={{ backgroundColor: colorConfigs[palette].accent }} />
+                        <p className={`text-[10px] opacity-60 uppercase mt-2 ${typographyConfig[typography]}`}>{gallery?.profiles?.full_name}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. BARRE D'ACTION DYNAMIQUE (Logique conservée) */}
+                <div 
+                  className="sticky top-0 z-20 flex items-center justify-between px-8 py-4 border-b backdrop-blur-md transition-all duration-500 rounded-xl mb-10"
+                  style={{ 
+                    backgroundColor: `${colorConfigs[palette].bg}E6`, 
+                    borderColor: colorConfigs[palette].border 
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 border" style={{ borderColor: colorConfigs[palette].border, backgroundColor: colorConfigs[palette].border }}>
+                      {gallery?.profiles?.avatar_url ? (
+                        <img src={gallery.profiles.avatar_url} className="w-full h-full object-cover" alt="Logo" />
+                      ) : (
+                        <span className="text-[10px] font-black opacity-40">{gallery?.profiles?.full_name?.charAt(0) || 'P'}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <h3 className={`text-[10px] uppercase ${typographyConfig[typography]}`}>{gallery?.event_name}</h3>
+                      <span className={`text-[7px] opacity-60 uppercase ${typographyConfig[typography]}`}>{gallery?.profiles?.full_name || "STUDIO"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-5">
+                    <button className="flex items-center gap-2" style={{ color: colorConfigs[palette].accent }}><Heart size={16} /></button>
+                    <button className="flex items-center gap-2" style={{ color: colorConfigs[palette].accent }}><Download size={16} /></button>
+                    <button className="flex items-center gap-2" style={{ color: colorConfigs[palette].accent }}><Share size={16} /></button>
+                  </div>
+                </div>
+
+                {/* 3. GRILLE DE PHOTOS (Logique conservée) */}
+                <div className={`transition-all duration-500 ${gridConfig.columns[thumbnailSize]} ${gridConfig.gap[gridSpacing]}`}>
+                  {photos.map((p, i) => (
+                    <div key={i} className="break-inside-avoid overflow-hidden mb-1">
+                      <img 
+                        src={p.url} 
+                        className="w-full h-auto object-cover rounded-md" 
+                        alt="" 
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
