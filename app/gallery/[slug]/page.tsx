@@ -1,26 +1,26 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Download, Heart, Share2, Loader2 } from 'lucide-react'
-import GalleryPreview from '@/components/GalleryPreview'
 
 // TYPO
-const typographyConfig: any = {
+const typographyConfig = {
   Sans: 'font-sans',
   Serif: 'font-serif',
   Mono: 'font-mono',
   Display: 'font-black uppercase tracking-tighter',
   Elegant: 'font-light italic serif',
-}
+} as const
 
 // COLORS
-const colorConfigs: any = {
+const colorConfigs = {
   Dark: { bg: '#030303', text: '#ffffff', border: '#ffffff10', accent: '#ea580c' },
   Light: { bg: '#ffffff', text: '#000000', border: '#00000010', accent: '#ea580c' },
   Soft: { bg: '#f8f9fa', text: '#1a1a1a', border: '#00000005', accent: '#000000' },
   Luxury: { bg: '#0a0a0a', text: '#d4af37', border: '#d4af3720', accent: '#d4af37' },
-}
+} as const
 
 // GRID
 const gridConfig = {
@@ -34,17 +34,55 @@ const gridConfig = {
   }
 }
 
+// TYPES
 type ThumbnailSize = 'Regular' | 'Large'
 type GridSpacing = 'Regular' | 'Large'
 
+type Gallery = {
+  id: string
+  event_name: string
+  event_date?: string
+  cover_url?: string
+  is_published?: boolean
+  profiles?: {
+    avatar_url?: string
+    full_name?: string
+  }
+  theme?: any
+}
+
+type Photo = {
+  url: string
+}
+
+// ✅ HERO COMPONENT (SORTI DU RENDER)
+type HeroProps = {
+  gallery: Gallery
+  dark?: boolean
+}
+
+function HeroContent({ gallery, dark = false }: HeroProps) {
+  return (
+    <div className="space-y-4">
+      <p className={`text-[10px] font-black uppercase tracking-[0.5em] ${dark ? 'text-black' : 'text-orange-600'}`}>
+        {gallery.event_date || 'Collection'}
+      </p>
+
+      <h1 className={`text-6xl md:text-[8vw] font-black italic uppercase ${dark ? 'text-black' : 'text-white'}`}>
+        {gallery.event_name}
+      </h1>
+    </div>
+  )
+}
+
 export default function PublicGalleryView() {
-  const params = useParams()
+  const params = useParams<{ slug: string }>()
   const searchParams = useSearchParams()
   const isPreview = searchParams.get('preview') === 'true'
-  
+
   const [loading, setLoading] = useState(true)
-  const [gallery, setGallery] = useState<any>(null)
-  const [photos, setPhotos] = useState<any[]>([])
+  const [gallery, setGallery] = useState<Gallery | null>(null)
+  const [photos, setPhotos] = useState<Photo[]>([])
 
   useEffect(() => {
     const fetchFullGallery = async () => {
@@ -55,7 +93,7 @@ export default function PublicGalleryView() {
           .eq('slug', params.slug)
           .single()
 
-        if (!g) throw new Error("Galerie introuvable")
+        if (!g) throw new Error('Galerie introuvable')
 
         if (!g.is_published && !isPreview) {
           setLoading(false)
@@ -80,23 +118,12 @@ export default function PublicGalleryView() {
     if (params.slug) fetchFullGallery()
   }, [params.slug, isPreview])
 
-  // 🔥 HERO CONTENT COMPONENT
-  const HeroContent = ({ gallery, dark = false }: any) => (
-    <div className="space-y-4">
-      <p className={`text-[10px] font-black uppercase tracking-[0.5em] ${dark ? 'text-black' : 'text-orange-600'}`}>
-        {gallery.event_date || 'Collection'}
-      </p>
-
-      <h1 className={`text-6xl md:text-[8vw] font-black italic uppercase ${dark ? 'text-black' : 'text-white'}`}>
-        {gallery.event_name}
-      </h1>
-    </div>
-  )
-
   if (loading) return (
     <div className="h-screen bg-black flex flex-col items-center justify-center gap-4">
       <Loader2 className="animate-spin text-orange-600" size={40} />
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">MboaPix Loading</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">
+        MboaPix Loading
+      </p>
     </div>
   )
 
@@ -117,11 +144,11 @@ export default function PublicGalleryView() {
   const enableDownload = theme.enable_download ?? true
   const enableFavorites = theme.enable_favorites ?? true
 
-  const colors = colorConfigs[palette] || colorConfigs.Dark
+  const colors = colorConfigs[palette as keyof typeof colorConfigs] || colorConfigs.Dark
 
   return (
-    <div 
-      className={`min-h-screen transition-colors duration-700 ${typographyConfig[typography]}`}
+    <div
+      className={`min-h-screen transition-colors duration-700 ${typographyConfig[typography as keyof typeof typographyConfig]}`}
       style={{ backgroundColor: colors.bg, color: colors.text }}
     >
 
@@ -135,8 +162,9 @@ export default function PublicGalleryView() {
       {coverStyle !== 'None' && (
         <section className="relative w-full h-screen overflow-hidden">
           
-          <img 
+          <img
             src={gallery.cover_url || photos[0]?.url}
+            alt="cover"
             className="absolute inset-0 w-full h-full object-cover"
           />
 
@@ -243,13 +271,13 @@ export default function PublicGalleryView() {
       )}
 
       {/* NAV */}
-      <nav 
+      <nav
         className="sticky top-0 z-50 border-b backdrop-blur-xl py-6 px-10 flex justify-between"
         style={{ backgroundColor: `${colors.bg}CC`, borderColor: colors.border }}
       >
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-full overflow-hidden">
-            <img src={gallery.profiles?.avatar_url} />
+            <img src={gallery.profiles?.avatar_url} alt="avatar" />
           </div>
           <div>
             <h4 className="text-[11px] font-black uppercase">{gallery.event_name}</h4>
@@ -270,8 +298,9 @@ export default function PublicGalleryView() {
           <div className={`${gridConfig.columns[thumbnailSize]} ${gridConfig.gap[gridSpacing]}`}>
             {photos.map((photo, i) => (
               <div key={i} className="break-inside-avoid group overflow-hidden">
-                <img 
+                <img
                   src={photo.url}
+                  alt="photo"
                   className="w-full h-auto object-cover transition-all duration-700 group-hover:scale-105"
                 />
               </div>
