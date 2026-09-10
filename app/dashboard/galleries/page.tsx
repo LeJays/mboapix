@@ -75,11 +75,11 @@ export default function CollectionsPage() {
     <div className="min-h-screen bg-white dark:bg-[#050505] flex transition-colors duration-300">
       <Sidebar profile={profile} />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* HEADER */}
-        <header className="border-b border-gray-100 dark:border-white/5 px-6 md:px-12 py-5 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-md z-30">
-          <div className="flex items-center gap-6 flex-1">
-            <h1 className="text-xl md:text-2xl font-black tracking-tighter italic uppercase dark:text-white shrink-0">
+        <header className="border-b border-gray-100 dark:border-white/5 px-4 sm:px-6 md:px-12 py-4 sm:py-5 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-md z-30">
+          <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tighter italic uppercase dark:text-white shrink-0">
               Collections
             </h1>
             <div className="relative flex-1 max-w-md hidden sm:block">
@@ -93,15 +93,15 @@ export default function CollectionsPage() {
               />
             </div>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="bg-black dark:bg-white text-white dark:text-black px-4 py-3 md:px-6 md:py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl hover:scale-[1.02] transition-all">
+          <button onClick={() => setIsModalOpen(true)} className="bg-black dark:bg-white text-white dark:text-black px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-3.5 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl hover:scale-[1.02] transition-all">
             <Plus size={18} strokeWidth={3} className="text-orange-600" />
-            <span className="hidden md:inline">Nouveau</span>
+            <span className="hidden sm:inline">Nouveau</span>
           </button>
         </header>
 
         {/* TOOLBAR */}
-        <div className="px-6 md:px-12 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-gray-50/30 dark:bg-black/10">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-4 sm:px-6 md:px-12 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between gap-3 bg-gray-50/30 dark:bg-black/10">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
             {/* FILTRE DE STATUT (NOUVEAU) */}
             <select 
               value={statusFilter}
@@ -122,7 +122,7 @@ export default function CollectionsPage() {
             </button>
           </div>
           
-          <div className="flex items-center gap-2 border-l border-gray-200 dark:border-white/10 pl-4 hidden xs:flex">
+          <div className="hidden sm:flex items-center gap-2 border-l border-gray-200 dark:border-white/10 pl-4">
              <button className="p-2 text-orange-600 bg-orange-500/10 rounded-lg"><Grid size={18} /></button>
              <button className="p-2 text-gray-400 hover:text-black dark:hover:text-white transition-colors"><List size={18} /></button>
           </div>
@@ -143,7 +143,7 @@ export default function CollectionsPage() {
               <p className="text-sm text-gray-500 mt-2 uppercase tracking-widest italic">Ajustez vos filtres pour voir vos clichés.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-8 gap-y-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-6 gap-y-8 sm:gap-x-8 sm:gap-y-12">
               {processedGalleries.map((gallery) => (
                 <CollectionCard key={gallery.id} gallery={gallery} />
               ))}

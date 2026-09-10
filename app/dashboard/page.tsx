@@ -54,18 +54,18 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505] flex transition-colors duration-300">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505] flex transition-colors duration-300 overflow-x-hidden">
       
       {/* UTILISATION DE LA SIDEBAR EXTERNE */}
       <Sidebar profile={profile} />
 
-      <main className="flex-1 lg:max-w-7xl mx-auto p-6 pt-24 md:p-12 lg:p-16 lg:pt-16">
+      <main className="flex-1 w-full lg:max-w-7xl mx-auto p-4 pt-20 sm:p-6 md:p-10 lg:p-16 lg:pt-16">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 text-left">
           <div>
             <span className="px-3 py-1 bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-4 inline-block">
               {profile?.subscription_tier || 'Mboa Free'}
             </span>
-            <h1 className="text-5xl md:text-6xl font-black tracking-tighter italic leading-[0.8] dark:text-white">Mon Studio.</h1>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter italic leading-[0.8] dark:text-white">Mon Studio.</h1>
           </div>
           <button 
             onClick={() => setIsModalOpen(true)} 

@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { buildGallerySlug } from '@/lib/gallery-data'
 import { X, Camera, Calendar, MapPin, Lock as LockIcon, Globe } from 'lucide-react'
 
 export default function CreateGalleryModal({ isOpen, onClose, onRefresh }: any) {
@@ -15,21 +16,25 @@ export default function CreateGalleryModal({ isOpen, onClose, onRefresh }: any) 
 
   if (!isOpen) return null
 
-  const generateSlug = (text: string) => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    const { data: existingGalleries, error: listError } = await supabase
+      .from('galleries')
+      .select('slug')
+      .eq('photographer_id', user.id)
+
+    if (listError) {
+      alert('Erreur lors de la génération du slug: ' + listError.message)
+      setLoading(false)
+      return
+    }
+
+    const slug = buildGallerySlug(formData.event_name, (existingGalleries || []).map((g) => g.slug))
 
     const { error } = await supabase
       .from('galleries')
@@ -40,7 +45,7 @@ export default function CreateGalleryModal({ isOpen, onClose, onRefresh }: any) 
         photographer_id: user.id,
         is_protected: formData.is_protected,
         password: formData.is_protected ? formData.password : null,
-        slug: `${generateSlug(formData.event_name)}-${Math.floor(Math.random() * 1000)}`
+        slug
       }])
 
     if (error) {

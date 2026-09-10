@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { saveGalleryData } from '@/lib/gallery-save'
 import { 
   ChevronLeft,Plus,Image as ImageIcon,Eye,UploadCloud,Loader2,X,Check,LayoutGrid,Paintbrush,
   Settings,Share2,Monitor,Type,Heart,Download,Share,Play
@@ -75,8 +76,11 @@ export default function GalleryManagePage() {
   const [gallery, setGallery] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [activeSet, setActiveSet] = useState('Toutes les photos')
   const [photos, setPhotos] = useState<any[]>([])
+  const [downloadLogs, setDownloadLogs] = useState<any[]>([])
+  const [favoriteLogs, setFavoriteLogs] = useState<any[]>([])
   const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('light')
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('general')
 
@@ -84,6 +88,8 @@ export default function GalleryManagePage() {
   const [coverStyle, setCoverStyle] = useState<CoverStyle>('Center');
 
   const [activeTab, setActiveTab] = useState<'mediatheque' | 'design' | 'settings' | 'share'>('mediatheque')
+  const [activeActivity, setActiveActivity] = useState<'downloads' | 'favorites'>('downloads')
+  const [activeDownloadType, setActiveDownloadType] = useState<'gallery' | 'photo' | 'video'>('gallery')
   const [designSection, setDesignSection] = useState<'layout' | 'typography' | 'colors' | 'cover'>('layout')
   const [isCoverModalOpen, setIsCoverModalOpen] = useState(false)
   const [modalStep, setModalStep] = useState<'upload' | 'album'>('upload')
@@ -155,29 +161,23 @@ const saveGeneralSettings = async () => {
     };
 
     // 2. MISE À JOUR BASE DE DONNÉES
-    const { error } = await supabase
-      .from('galleries')
-      .update({ 
-        // Colonnes SQL directes
-        slug: settings.slug,
-        event_name: settings.slug, 
-        is_protected: settings.is_protected,
-        password: settings.password,
-        // Colonne JSONB pour tout le reste
-        theme: updatedTheme 
-      })
-      .eq('id', gallery.id);
-
-    if (error) throw error;
-
-    // 3. Mise à jour de l'état local pour l'UI
-    setGallery({ 
-      ...gallery, 
-      slug: settings.slug, 
-      event_name: settings.slug,
-      is_protected: settings.is_protected,
+    const saved = await saveGalleryData({
+      galleryId: gallery.id,
+      eventName: gallery?.event_name || settings.slug,
+      slug: settings.slug,
+      isProtected: settings.is_protected,
       password: settings.password,
-      theme: updatedTheme 
+      theme: updatedTheme,
+    })
+
+    setGallery({
+      ...gallery,
+      ...saved,
+      slug: saved.slug,
+      event_name: saved.event_name,
+      is_protected: saved.is_protected,
+      password: saved.password,
+      theme: saved.theme,
     });
     
     alert("Tous les paramètres ont été synchronisés avec la base de données !");
@@ -194,6 +194,44 @@ const saveGeneralSettings = async () => {
 const handleSettingChange = (key: string, value: any) => {
   setSettings(prev => ({ ...prev, [key]: value }));
 };
+
+  const loadActivityLogs = async (galleryId: string) => {
+    if (!galleryId) return;
+
+    try {
+      const response = await fetch(`/api/activity?galleryId=${encodeURIComponent(galleryId)}`)
+
+      if (!response.ok) {
+        throw new Error(`Impossible de charger les activités: ${response.status}`)
+      }
+
+      const result = await response.json()
+      setDownloadLogs(result.downloads || [])
+      setFavoriteLogs(result.favorites || [])
+    } catch (error) {
+      console.error('Erreur chargement activités:', error)
+
+      try {
+        const { data: downloads, error: downloadError } = await supabase
+          .from('gallery_downloads')
+          .select('*')
+          .eq('gallery_id', galleryId)
+          .order('downloaded_at', { ascending: false })
+
+        if (!downloadError) setDownloadLogs(downloads || [])
+
+        const { data: favorites, error: favoriteError } = await supabase
+          .from('gallery_favorites')
+          .select('*')
+          .eq('gallery_id', galleryId)
+          .order('favorited_at', { ascending: false })
+
+        if (!favoriteError) setFavoriteLogs(favorites || [])
+      } catch (fallbackError) {
+        console.error('Erreur fallback activités:', fallbackError)
+      }
+    }
+  }
 
   useEffect(() => {
   async function loadData() {
@@ -284,6 +322,8 @@ const handleSettingChange = (key: string, value: any) => {
       setPhotos(p || []);
     }
 
+    await loadActivityLogs(g.id)
+
     setLoading(false);
   }
 
@@ -298,6 +338,17 @@ const handleSettingChange = (key: string, value: any) => {
     }
     return () => { document.body.style.overflow = 'auto' }
   }, [isCoverModalOpen])
+
+  useEffect(() => {
+    if (!slug || activeTab !== 'share') return
+
+    const refreshActivity = async () => {
+      if (!gallery?.id) return
+      await loadActivityLogs(gallery.id)
+    }
+
+    void refreshActivity()
+  }, [slug, activeTab, gallery?.id])
 
   const handleConfirmCover = async () => {
     if (!tempSelectedCover) return
@@ -425,15 +476,16 @@ const handleSettingChange = (key: string, value: any) => {
         palette: palette
       };
 
-      const { error } = await supabase
-        .from('galleries')
-        .update({ theme: updatedTheme })
-        .eq('id', gallery.id);
+      const saved = await saveGalleryData({
+        galleryId: gallery.id,
+        eventName: gallery?.event_name,
+        slug: gallery?.slug,
+        isProtected: gallery?.is_protected,
+        password: gallery?.password,
+        theme: updatedTheme,
+      })
 
-      if (error) throw error;
-      
-      // Optionnel : Mettre à jour l'état local pour que l'interface soit synchro
-      setGallery({ ...gallery, theme: updatedTheme });
+      setGallery({ ...gallery, ...saved, theme: saved.theme });
       
       alert("Design enregistré avec succès !");
     } catch (error) {
@@ -443,14 +495,172 @@ const handleSettingChange = (key: string, value: any) => {
       setUploading(false);
     }
   };
+
+  const formatDownloadDate = (value: string | null) => {
+    if (!value) return 'Date inconnue'
+
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return 'Date inconnue'
+
+    const diffMs = Date.now() - date.getTime()
+    const diffMinutes = Math.max(1, Math.floor(diffMs / (1000 * 60)))
+
+    if (diffMinutes < 60) return `Il y a ${diffMinutes} min`
+    if (diffMinutes < 1440) return `Il y a ${Math.floor(diffMinutes / 60)} h`
+    return `Il y a ${Math.floor(diffMinutes / 1440)} j`
+  }
+
+  type ActivityRow = {
+    user: string
+    action: string
+    date: string
+    file: string
+    image?: string | null
+    tone: string
+  }
+
+  const activityItems = [
+    { id: 'downloads', label: 'Téléchargements', desc: 'Photos téléchargées par les clients', icon: <Download size={14} />, count: String(downloadLogs.length || 0) },
+    { id: 'favorites', label: 'Favoris', desc: 'Sélections et coups de cœur', icon: <Heart size={14} />, count: String(favoriteLogs.length || 0) },
+  ] as const;
+
+  const photoById = Object.fromEntries((photos || []).map((photo) => [photo.id, photo.url])) as Record<string, string>
+  const galleryPreview = gallery?.cover_url || null
+
+  const downloadRowsByType: Record<'gallery' | 'photo' | 'video', ActivityRow[]> = {
+    gallery: (downloadLogs || []).filter((log) => log.media_type === 'gallery').map((log) => ({
+      user: log.viewer_email || log.viewer_name || 'Client anonyme',
+      action: 'Téléchargement complet',
+      date: formatDownloadDate(log.downloaded_at),
+      file: log.file_name || 'Galerie complète',
+      image: log.file_url || galleryPreview,
+      tone: 'bg-green-500/10 text-green-600',
+    })),
+    photo: (downloadLogs || []).filter((log) => log.media_type === 'photo').map((log) => ({
+      user: log.viewer_email || log.viewer_name || 'Client anonyme',
+      action: 'Téléchargement photo',
+      date: formatDownloadDate(log.downloaded_at),
+      file: log.file_name || 'Photo',
+      image: log.file_url || (log.media_id ? photoById[log.media_id] : null) || galleryPreview,
+      tone: 'bg-orange-500/10 text-orange-600',
+    })),
+    video: (downloadLogs || []).filter((log) => log.media_type === 'video').map((log) => ({
+      user: log.viewer_email || log.viewer_name || 'Client anonyme',
+      action: 'Téléchargement vidéo',
+      date: formatDownloadDate(log.downloaded_at),
+      file: log.file_name || 'Vidéo',
+      image: log.file_url || null,
+      tone: 'bg-violet-500/10 text-violet-600',
+    })),
+  } as const;
+
+  const favoriteRows: ActivityRow[] = (favoriteLogs || []).map((log) => ({
+    user: log.viewer_email || log.viewer_name || 'Client anonyme',
+    action: log.item_name ? 'Ajout aux favoris' : 'Photo favorite',
+    date: formatDownloadDate(log.favorited_at),
+    file: log.item_name || 'Élément favori',
+    image: log.media_id ? photoById[log.media_id] : log.item_type === 'gallery' ? galleryPreview : null,
+    tone: 'bg-amber-500/10 text-amber-600',
+  }));
+
+  const favoriteStats = [
+    { label: 'Favoris totaux', value: String(favoriteRows.length), accent: true },
+    { label: 'Clients uniques', value: String(new Set(favoriteRows.map((row) => row.user)).size) },
+    { label: 'Dernière action', value: favoriteRows[0]?.date || 'Aucune' },
+  ] as const;
+
+  const activityDetails: {
+    downloads: { title: string; badge: string; rows: ActivityRow[]; stats: { label: string; value: string; accent?: boolean }[] }
+    favorites: { title: string; badge: string; rows: ActivityRow[]; stats: { label: string; value: string; accent?: boolean }[] }
+  } = {
+    downloads: {
+      title: 'Activité des téléchargements',
+      badge: 'Téléchargements',
+      rows: downloadRowsByType.gallery,
+      stats: [
+        { label: 'Total téléchargements', value: String(downloadLogs.length), accent: true },
+        { label: 'Clients uniques', value: String(new Set(downloadLogs.map((log) => log.viewer_email || log.viewer_name || 'Client anonyme')).size) },
+        { label: 'Dernière action', value: formatDownloadDate(downloadLogs[0]?.downloaded_at || null) },
+      ],
+    },
+    favorites: {
+      title: 'Activité des favoris',
+      badge: 'Favoris',
+      rows: favoriteRows,
+      stats: favoriteStats as unknown as { label: string; value: string; accent?: boolean }[],
+    },
+  };
+
+  type StatCard = { label: string; value: string; accent?: boolean };
+
+  const selectedActivity = activeActivity === 'downloads'
+    ? { title: 'Téléchargements', rows: [] as ActivityRow[], stats: [] as StatCard[] }
+    : activityDetails[activeActivity];
+
+  const selectedDownloadRows = activeActivity === 'downloads'
+    ? downloadRowsByType[activeDownloadType]
+    : selectedActivity.rows;
+
+  const selectedDownloadStats: StatCard[] = activeActivity === 'downloads'
+    ? [
+        {
+          label: activeDownloadType === 'gallery' ? 'Galeries téléchargées' : activeDownloadType === 'photo' ? 'Photos téléchargées' : 'Vidéos téléchargées',
+          value: String(selectedDownloadRows.length),
+          accent: true,
+        },
+        {
+          label: 'Clients uniques',
+          value: String(new Set(selectedDownloadRows.map((row: { user: string }) => row.user)).size),
+        },
+        {
+          label: 'Dernière action',
+          value: selectedDownloadRows[0]?.date || 'Aucune',
+        },
+      ]
+    : selectedActivity.stats as StatCard[];
+
+  const selectedDownloadTitle = activeActivity === 'downloads'
+    ? activeDownloadType === 'gallery'
+      ? 'Galeries téléchargées'
+      : activeDownloadType === 'photo'
+        ? 'Photos téléchargées'
+        : 'Vidéos téléchargées'
+    : selectedActivity.title;
   const handlePreview = () => {
-  if (settings.slug) {
-    // window.open ouvre l'URL dans un nouvel onglet
-    window.open(`/gallery/${settings.slug}?preview=true`, '_blank');
+  const slugToUse = settings.slug || gallery?.slug || params.slug
+  if (slugToUse) {
+    window.open(`/gallery/${slugToUse}?preview=true`, '_blank');
   } else {
     alert("Veuillez d'abord configurer un slug dans l'onglet général.");
   }
 };
+
+  const handlePublish = async () => {
+    if (!gallery?.id) return
+
+    try {
+      setPublishing(true)
+      const nextPublishedState = !gallery.is_published
+      const { data: saved, error } = await supabase
+        .from('galleries')
+        .update({ is_published: nextPublishedState })
+        .eq('id', gallery.id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setGallery((prev: any) => ({ ...prev, is_published: saved.is_published }))
+
+      const url = `/gallery/${saved.slug || settings.slug || slug}${nextPublishedState ? '' : '?preview=true'}`
+      window.open(url, '_blank')
+    } catch (error) {
+      console.error('Erreur publication:', error)
+      alert('Impossible de publier la galerie pour le moment.')
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   return (
     <div className="h-screen bg-white dark:bg-[#050505] flex flex-col text-gray-900 dark:text-white relative font-sans overflow-hidden">
@@ -478,8 +688,12 @@ const handleSettingChange = (key: string, value: any) => {
 >
   <Eye size={18} className="group-hover:text-orange-600 transition-colors" />
 </button>
-          <button className="bg-orange-600 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-700 transition-colors">
-            Publier
+          <button
+            onClick={handlePublish}
+            disabled={publishing}
+            className="bg-orange-600 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-700 transition-colors disabled:opacity-60"
+          >
+            {publishing ? 'Publication...' : gallery?.is_published ? 'En ligne' : 'Publier'}
           </button>
         </div>
       </header>
@@ -1255,94 +1469,126 @@ const handleSettingChange = (key: string, value: any) => {
       </div>
 
       <div className="space-y-3 pb-20">
-        {[
-          { id: 'downloads', label: 'Download Activity', desc: 'Photos téléchargées par les clients', icon: <Download size={14}/>, count: '124' },
-          { id: 'favorites', label: 'Favorite Activity', desc: 'Sélections et coups de cœur', icon: <Heart size={14}/>, count: '48' },
-          { id: 'orders', label: 'Store Orders', desc: 'Commandes de tirages photos', icon: <Plus size={14}/>, count: '03' },
-          { id: 'emails', label: 'Email Registration', desc: 'Base de données des visiteurs', icon: <Type size={14}/>, count: '85' },
-          { id: 'quick_share', label: 'Quick Share Links', desc: 'Stats de partage réseaux sociaux', icon: <Share2 size={14}/>, count: '12' },
-          { id: 'private_logs', label: 'Private Photos', desc: 'Accès aux contenus protégés', icon: <Eye size={14}/>, count: '07' },
-        ].map((item) => (
-          <button 
-            key={item.id} 
-            // Ici tu créeras un état 'activeActivity' pour changer l'affichage à droite
-            className="w-full flex items-center justify-between p-4 bg-white dark:bg-white/2 rounded-[22px] border border-gray-100 dark:border-white/5 hover:border-orange-600/40 transition-all group"
-          >
-            <div className="flex items-center gap-4 text-left">
-              <div className="w-10 h-10 bg-orange-600/10 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all">
-                {item.icon}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">{item.label}</span>
-                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">{item.desc}</p>
-              </div>
-            </div>
+        {activityItems.map((item) => {
+          const isActive = activeActivity === item.id
 
-            {/* Badge de compteur */}
-            <div className="bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-full">
-               <span className="text-[10px] font-black italic text-orange-600">{item.count}</span>
-            </div>
-          </button>
-        ))}
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveActivity(item.id)}
+              className={`w-full flex items-center justify-between p-4 rounded-[22px] border transition-all group ${
+                isActive
+                  ? 'bg-orange-50 dark:bg-orange-600/10 border-orange-200 dark:border-orange-600/40'
+                  : 'bg-white dark:bg-white/2 border-gray-100 dark:border-white/5 hover:border-orange-600/40'
+              }`}
+            >
+              <div className="flex items-center gap-4 text-left">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  isActive
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-orange-600/10 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'
+                }`}>
+                  {item.icon}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">{item.label}</span>
+                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">{item.desc}</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-full">
+                <span className="text-[10px] font-black italic text-orange-600">{item.count}</span>
+              </div>
+            </button>
+          )
+        })}
       </div>
     </div>
 
-    {/* AFFICHAGE DES DONNÉES (DROITE) */}
     <div className="flex-1 bg-gray-50 dark:bg-[#030303] p-6 lg:p-12 flex flex-col overflow-y-auto">
-      
-      {/* HEADER DE LA SECTION SÉLECTIONNÉE */}
       <div className="flex justify-between items-end mb-10">
         <div className="space-y-2">
-          <p className="text-[10px] text-orange-600 font-black uppercase tracking-[0.3em]">Détails du log</p>
-          <h3 className="text-4xl font-black italic uppercase tracking-tighter">Download Activity</h3>
+          <p className="text-[10px] text-orange-600 font-black uppercase tracking-[0.3em]">Détails du journal</p>
+          <h3 className="text-4xl font-black italic uppercase tracking-tighter">{activeActivity === 'downloads' ? selectedDownloadTitle : selectedActivity.title}</h3>
         </div>
         <button className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 hover:text-white transition-all">
           Exporter CSV
         </button>
       </div>
 
-      {/* TABLEAU DE DONNÉES (Exemple pour les emails ou téléchargements) */}
+      {activeActivity === 'downloads' && (
+        <div className="mb-8 flex flex-wrap gap-3">
+          {[
+            { id: 'gallery', label: 'Galeries téléchargées' },
+            { id: 'photo', label: 'Photos téléchargées' },
+            { id: 'video', label: 'Vidéos téléchargées' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveDownloadType(item.id as 'gallery' | 'photo' | 'video')}
+              className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                activeDownloadType === item.id
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20'
+                  : 'bg-white dark:bg-[#080808] border border-gray-200 dark:border-white/10 text-gray-500 hover:border-orange-600/40'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="bg-white dark:bg-[#080808] rounded-[35px] border border-gray-100 dark:border-white/5 overflow-hidden shadow-xl">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-gray-100 dark:border-white/5 text-[9px] font-black uppercase tracking-widest text-gray-400">
-              <th className="p-6">Utilisateur / Email</th>
+              <th className="p-6">Client</th>
+              <th className="p-6">Élément téléchargé</th>
               <th className="p-6">Action</th>
               <th className="p-6">Date</th>
-              <th className="p-6 text-right">Fichier</th>
             </tr>
           </thead>
           <tbody className="text-[10px] font-bold uppercase">
-            {[1, 2, 3, 4, 5].map((row) => (
-              <tr key={row} className="border-b border-gray-50 dark:border-white/2 hover:bg-gray-50 dark:hover:bg-white/2 transition-colors">
-                <td className="p-6">james.w@mboapix.com</td>
+            {(activeActivity === 'downloads' ? selectedDownloadRows : selectedActivity.rows).map((row, index) => (
+              <tr key={`${row.user}-${index}`} className="border-b border-gray-50 dark:border-white/2 hover:bg-gray-50 dark:hover:bg-white/2 transition-colors">
+                <td className="p-6">{row.user}</td>
                 <td className="p-6">
-                  <span className="bg-green-500/10 text-green-600 px-3 py-1 rounded-lg text-[8px]">High-Res Download</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {row.image ? (
+                      <img
+                        src={row.image}
+                        alt={row.file}
+                        className="h-10 w-10 rounded-lg object-cover border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-[8px] font-black uppercase tracking-wider text-gray-400">
+                        {row.file?.charAt(0) || '?'}
+                      </div>
+                    )}
+                    <span className="font-mono text-orange-600 truncate max-w-[220px]">{row.file}</span>
+                  </div>
                 </td>
-                <td className="p-6 text-gray-400">Il y a 2 heures</td>
-                <td className="p-6 text-right font-mono text-orange-600">DSC_0{row}42.JPG</td>
+                <td className="p-6">
+                  <span className={`${row.tone} px-3 py-1 rounded-lg text-[8px]`}>{row.action}</span>
+                </td>
+                <td className="p-6 text-gray-400">{row.date}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* RÉSUMÉ RAPIDE EN BAS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <div className="p-8 bg-orange-600 rounded-[30px] text-white shadow-xl shadow-orange-600/20">
-          <p className="text-[9px] font-black uppercase opacity-60 tracking-widest">Total Downloads</p>
-          <p className="text-3xl font-black italic tracking-tighter">1,284</p>
-        </div>
-        <div className="p-8 bg-white dark:bg-[#080808] rounded-[30px] border border-gray-100 dark:border-white/5">
-          <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Utilisateurs uniques</p>
-          <p className="text-3xl font-black italic tracking-tighter">42</p>
-        </div>
-        <div className="p-8 bg-white dark:bg-[#080808] rounded-[30px] border border-gray-100 dark:border-white/5">
-          <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Espace utilisé</p>
-          <p className="text-3xl font-black italic tracking-tighter">2.4 GB</p>
-        </div>
+        {(activeActivity === 'downloads' ? selectedDownloadStats : selectedActivity.stats).map((stat, index) => (
+          <div
+            key={`${stat.label}-${index}`}
+            className={`p-8 rounded-[30px] shadow-xl ${stat.accent ? 'bg-orange-600 text-white shadow-orange-600/20' : 'bg-white dark:bg-[#080808] border border-gray-100 dark:border-white/5'}`}
+          >
+            <p className={`text-[9px] font-black uppercase tracking-widest ${stat.accent ? 'opacity-60' : 'text-gray-400'}`}>{stat.label}</p>
+            <p className="text-3xl font-black italic tracking-tighter">{stat.value}</p>
+          </div>
+        ))}
       </div>
-
     </div>
   </div>
 ):(
