@@ -100,7 +100,7 @@ export default function Sidebar({ profile }: { profile: any }) {
       </div>
 
       {/* DESKTOP SIDEBAR */}
-      <aside className="w-72 border-r border-gray-100 dark:border-white/[0.05] hidden lg:flex flex-col p-8 sticky top-0 h-screen bg-white dark:bg-[#050505]">
+      <aside className="w-72 border-r border-gray-100 dark:border-white/[0.05] hidden lg:flex flex-col p-8 sticky top-0 self-start h-screen bg-white dark:bg-[#050505] shrink-0">
         <SidebarContent />
       </aside>
 
