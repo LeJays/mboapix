@@ -2,18 +2,21 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { NodeHttpHandler } from "@aws-sdk/node-http-handler";
 
-const s3 = new S3Client({
-  endpoint: `https://${process.env.NEXT_PUBLIC_B2_ENDPOINT}`,
-  region: process.env.NEXT_PUBLIC_B2_REGION,
-  credentials: {
-    accessKeyId: process.env.B2_KEY_ID!,
-    secretAccessKey: process.env.B2_APPLICATION_KEY!,
-  },
-  requestHandler: new NodeHttpHandler({
-    connectionTimeout: 20000, // 20s pour établir connexion
-    socketTimeout: 40000,     // 40s pour télécharger
-  }),
-});
+function getS3Client() {
+  const endpoint = process.env.NEXT_PUBLIC_B2_ENDPOINT;
+  return new S3Client({
+    endpoint: endpoint ? `https://${endpoint}` : undefined,
+    region: process.env.NEXT_PUBLIC_B2_REGION || 'us-east-005',
+    credentials: {
+      accessKeyId: process.env.B2_KEY_ID || '',
+      secretAccessKey: process.env.B2_APPLICATION_KEY || '',
+    },
+    requestHandler: new NodeHttpHandler({
+      connectionTimeout: 20000, // 20s pour établir connexion
+      socketTimeout: 40000,     // 40s pour télécharger
+    }),
+  });
+}
 
 // Note l'utilisation de Promise pour les params
 export async function GET(
@@ -24,7 +27,12 @@ export async function GET(
   const resolvedParams = await params;
   const filePath = resolvedParams.path.join('/');
   
+  if (!process.env.NEXT_PUBLIC_B2_ENDPOINT || !process.env.NEXT_PUBLIC_B2_BUCKET_NAME) {
+    return NextResponse.json({ error: "Storage B2 non configuré" }, { status: 404 });
+  }
+
   try {
+    const s3 = getS3Client();
     const command = new GetObjectCommand({
       Bucket: process.env.NEXT_PUBLIC_B2_BUCKET_NAME,
       Key: filePath,

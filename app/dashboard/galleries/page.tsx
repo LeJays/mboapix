@@ -72,10 +72,10 @@ export default function CollectionsPage() {
   }, [galleries, searchTerm, statusFilter, sortByDate])
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#050505] flex transition-colors duration-300">
+    <div className="h-screen bg-white dark:bg-[#050505] flex transition-colors duration-300 overflow-hidden">
       <Sidebar profile={profile} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+      <div className="flex-1 h-screen flex flex-col min-w-0 overflow-y-auto">
         {/* HEADER */}
         <header className="border-b border-gray-100 dark:border-white/5 px-4 sm:px-6 md:px-12 py-4 sm:py-5 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-md z-30">
           <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">

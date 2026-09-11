@@ -3,46 +3,20 @@
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Download, Heart, Share2, Loader2, X, ChevronLeft, ChevronRight, Check, ArrowDownToLine } from 'lucide-react'
-
-// ─── DESIGN SYSTEM ───────────────────────────────────────────────────────────
-
-type ColorPalette    = 'Light'|'Gold'|'Rose'|'Terracotta'|'Sand'|'Olive'|'Agave'|'Sea'|'Dark'
-type TypographyStyle = 'Sans'|'Serif'|'Modern'|'Timeless'|'Bold'|'Subtle'
-type ThumbnailSize   = 'Regular'|'Large'
-type GridSpacing     = 'Regular'|'Large'
-type NavigationStyle = 'Icon Only'|'Icon & Text'
-type CoverStyle      = 'Center'|'Love'|'Left'|'Novel'|'Vintage'|'Frame'|'Stripe'|'Divider'|'Journal'|'Stamp'|'Outline'|'Classic'|'None'
-
-const typographyConfig: Record<TypographyStyle, string> = {
-  Sans:     'font-sans tracking-normal',
-  Serif:    'font-serif tracking-normal',
-  Modern:   'font-sans tracking-[0.2em] font-light uppercase',
-  Timeless: 'font-serif italic tracking-wide font-light',
-  Bold:     'font-sans font-black uppercase tracking-tighter',
-  Subtle:   'font-sans font-thin tracking-[0.3em] uppercase opacity-70',
-}
-
-const colorConfigs: Record<ColorPalette,{ bg:string; accent:string; text:string; border:string }> = {
-  Light:      { bg:'#FFFFFF', accent:'#EA580C', text:'#111827', border:'#F3F4F6' },
-  Gold:       { bg:'#FAF9F6', accent:'#A68966', text:'#433422', border:'#EFEBE5' },
-  Rose:       { bg:'#FFF9F9', accent:'#A67B7B', text:'#4A3535', border:'#F5E8E8' },
-  Terracotta: { bg:'#FDF8F5', accent:'#A66D4F', text:'#4A2E1F', border:'#F2E3DB' },
-  Sand:       { bg:'#F9F7F5', accent:'#8C7A6B', text:'#3D352F', border:'#EEEAE6' },
-  Olive:      { bg:'#F9FAF7', accent:'#8C9475', text:'#383D2E', border:'#EDF0E6' },
-  Agave:      { bg:'#F7F9F8', accent:'#789489', text:'#2E3D38', border:'#E6EFEA' },
-  Sea:        { bg:'#F6F7F9', accent:'#7D8494', text:'#2E323D', border:'#E6E9EF' },
-  Dark:       { bg:'#080808', accent:'#EA580C', text:'#FFFFFF', border:'#1F2937' },
-}
-
-const gridConfig = {
-  columns: { Regular:'columns-2 sm:columns-3 lg:columns-4', Large:'columns-1 sm:columns-2 lg:columns-2' },
-  gap:     { Regular:'gap-1 space-y-1',                     Large:'gap-6 space-y-6' },
-}
+import { Download, Heart, Loader2, X, ChevronLeft, ChevronRight, ArrowDownToLine } from 'lucide-react'
+import GalleryPreview, {
+  ColorPalette,
+  TypographyStyle,
+  ThumbnailSize,
+  GridSpacing,
+  NavigationStyle,
+  CoverStyle,
+  colorConfigs,
+  typographyConfig,
+} from '@/components/GalleryPreview'
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
-type Colors  = { bg:string; accent:string; text:string; border:string }
 type ThemeConfig = {
   show_logo?: boolean
   show_description?: boolean
@@ -62,271 +36,6 @@ type Gallery = {
 type Photo = { id?:string; name?:string; url:string }
 type PendingAction = 'favorite-gallery'|'download-gallery'|'favorite-photo'|'download-photo'
 
-// ─── COVER HELPERS ───────────────────────────────────────────────────────────
-
-function CoverBg({
-  src, children, overlay = 'bg-black/30'
-}: { src?:string; children:React.ReactNode; overlay?:string }) {
-  return (
-    <div className="relative w-full h-screen overflow-hidden">
-      {src && <img src={src} className="absolute inset-0 w-full h-full object-cover scale-[1.02] transition-transform duration-[10s] hover:scale-100" alt="" />}
-      <div className={`absolute inset-0 ${overlay}`} />
-      <div className="relative z-10 w-full h-full">{children}</div>
-    </div>
-  )
-}
-
-function Line({ color = 'white', opacity = 40, width = 10 }: { color?:string; opacity?:number; width?:number }) {
-  return <div className={`h-[1px] mb-6`} style={{ width, backgroundColor: color === 'white' ? `rgba(255,255,255,0.${opacity})` : color }} />
-}
-
-// ─── COVER STYLES ────────────────────────────────────────────────────────────
-
-function Cover({ gallery, coverStyle, typo, colors, theme }: {
-  gallery:Gallery; coverStyle:Exclude<CoverStyle,'None'>; typo:string; colors:Colors; theme?: ThemeConfig
-}) {
-  const name    = gallery.event_name
-  const studio  = gallery.profiles?.full_name || 'Photographe'
-  const img     = gallery.cover_url
-  const description = String((gallery.theme?.cover_description as string | undefined) || gallery.profiles?.description || '').trim()
-  const showLogo = theme?.show_logo !== false
-  const showDescription = theme?.show_description !== false
-  const titlePosition = theme?.title_position === 'left' ? 'left' : 'center'
-  const logoPosition = theme?.logo_position || 'top-left'
-  const descriptionPosition = theme?.description_position === 'side' ? 'side' : 'bottom'
-
-  const renderLogo = showLogo && gallery.profiles?.avatar_url ? (
-    <div
-      className={`absolute z-20 ${
-        logoPosition === 'top-center' ? 'top-8 left-1/2 -translate-x-1/2' :
-        logoPosition === 'bottom-left' ? 'bottom-8 left-8' : 'top-8 left-8'
-      }`}
-    >
-      <div className="w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-full border border-white/30 bg-white/10 backdrop-blur-md shadow-lg">
-        <img src={gallery.profiles.avatar_url} alt="Logo du studio" className="w-full h-full object-cover" />
-      </div>
-    </div>
-  ) : null
-
-  const renderDescription = showDescription && description ? (
-    <p className={`max-w-xl text-white/75 text-sm md:text-base leading-relaxed ${descriptionPosition === 'side' ? 'max-w-[220px]' : 'text-center'}`}>
-      {description}
-    </p>
-  ) : null
-
-  const renderTitleWithMeta = (titleNode: React.ReactNode) => (
-    descriptionPosition === 'side' ? (
-      <div className={`flex ${titlePosition === 'left' ? 'items-end justify-start' : 'items-end justify-center'} gap-6`}>
-        <div>{titleNode}</div>
-        {renderDescription}
-      </div>
-    ) : (
-      <>
-        {titleNode}
-        {renderDescription && <div className="mt-5 flex justify-center">{renderDescription}</div>}
-      </>
-    )
-  )
-
-  const renderStudioName = studio ? (
-    <p className={`uppercase tracking-[0.45em] text-white/55 text-[9px] md:text-[10px] ${titlePosition === 'left' ? 'text-left' : 'text-center'}`}>
-      {studio}
-    </p>
-  ) : null
-
-  const titleClass = titlePosition === 'left' ? 'items-start text-left' : 'items-center text-center'
-
-  /* ── CENTER ── */
-  if (coverStyle === 'Center') return (
-    <CoverBg src={img} overlay="bg-gradient-to-b from-black/5 via-transparent to-black/70">
-      {renderLogo}
-      <div className={`flex h-full flex-col justify-end pb-20 px-8 ${titleClass}`}>
-        <p className={`text-white/50 text-[9px] uppercase tracking-[0.5em] mb-5 ${typo}`}>{studio}</p>
-        <Line />
-        <h1 className={`text-5xl md:text-7xl text-white leading-none ${typo}`}>{name}</h1>
-        {descriptionPosition === 'bottom' && renderDescription && (
-          <div className="mt-5 flex justify-center"><div className="max-w-2xl">{renderDescription}</div></div>
-        )}
-      </div>
-    </CoverBg>
-  )
-
-  /* ── LEFT ── */
-  if (coverStyle === 'Left') return (
-    <CoverBg src={img} overlay="bg-gradient-to-r from-black/65 via-black/20 to-transparent">
-      {renderLogo}
-      <div className="flex flex-col justify-end h-full pb-20 pl-12 md:pl-24">
-        <p className={`text-white/50 text-[9px] uppercase tracking-[0.5em] mb-4 ${typo}`}>{studio}</p>
-        <Line />
-        <h1 className={`text-4xl md:text-6xl text-white leading-tight max-w-lg ${typo}`}>{name}</h1>
-        {descriptionPosition === 'bottom' && renderDescription && (
-          <div className="mt-5 max-w-lg">{renderDescription}</div>
-        )}
-      </div>
-    </CoverBg>
-  )
-
-  /* ── STRIPE ── */
-  if (coverStyle === 'Stripe') return (
-    <CoverBg src={img} overlay="bg-black/25">
-      {renderLogo}
-      <div className="flex flex-col items-center justify-center h-full px-8">
-        <div className="w-full max-w-3xl text-center py-10 px-12"
-          style={{ borderTop:'1px solid rgba(255,255,255,0.25)', borderBottom:'1px solid rgba(255,255,255,0.25)', backdropFilter:'blur(6px)', backgroundColor:'rgba(0,0,0,0.2)' }}>
-          <h1 className={`text-4xl md:text-6xl text-white ${typo}`}>{name}</h1>
-          <p className={`text-white/50 text-[9px] uppercase tracking-[0.5em] mt-5 ${typo}`}>{studio}</p>
-          {descriptionPosition === 'bottom' && renderDescription && <div className="mt-5 flex justify-center">{renderDescription}</div>}
-        </div>
-      </div>
-    </CoverBg>
-  )
-
-  /* ── OUTLINE ── */
-  if (coverStyle === 'Outline') return (
-    <CoverBg src={img} overlay="bg-black/35">
-      {renderLogo}
-      <div className="flex items-center justify-center h-full p-10 md:p-20">
-        <div className="border border-white/45 p-10 md:p-16 text-center max-w-xl w-full">
-          <h1 className={`text-4xl md:text-6xl text-white ${typo}`}>{name}</h1>
-          <div className="w-8 h-[1px] bg-white/40 mx-auto mt-7 mb-5" />
-          <p className={`text-white/45 text-[9px] uppercase tracking-[0.45em] ${typo}`}>{studio}</p>
-          {descriptionPosition === 'bottom' && renderDescription && <div className="mt-7 flex justify-center">{renderDescription}</div>}
-        </div>
-      </div>
-    </CoverBg>
-  )
-
-  /* ── CLASSIC ── */
-  if (coverStyle === 'Classic') return (
-    <CoverBg src={img} overlay="bg-gradient-to-t from-black/80 via-black/10 to-transparent">
-      {renderLogo}
-      <div className="flex flex-col items-center justify-end h-full pb-24 text-center px-8">
-        <p className={`text-white/45 text-[9px] uppercase tracking-[0.5em] mb-4 ${typo}`}>{studio}</p>
-        <h1 className={`text-5xl md:text-7xl text-white ${typo}`}>{name}</h1>
-        <div className="w-8 h-[1px] bg-white/35 mt-7" />
-        {descriptionPosition === 'bottom' && renderDescription && <div className="mt-5">{renderDescription}</div>}
-      </div>
-    </CoverBg>
-  )
-
-  /* ── LOVE ── */
-  if (coverStyle === 'Love') return (
-    <CoverBg src={img} overlay="bg-black/45">
-      {renderLogo}
-      <div className="flex flex-col items-center justify-center h-full text-center gap-4 px-8">
-        <p className={`text-white/35 text-[9px] uppercase tracking-[0.6em] ${typo}`}>{studio}</p>
-        <h1 className={`text-[22vw] md:text-[16vw] leading-none text-white/90 ${typo}`}>LOVE</h1>
-        <p className={`text-white/65 text-xl md:text-2xl ${typo}`}>{name}</p>
-        {renderDescription && <div className="mt-2">{renderDescription}</div>}
-      </div>
-    </CoverBg>
-  )
-
-  /* ── NOVEL ── */
-  if (coverStyle === 'Novel') return (
-    <div className="flex flex-col md:flex-row w-full h-screen">
-      <div className="flex flex-col justify-between p-10 md:p-16 md:w-[38%] shrink-0 relative"
-        style={{ backgroundColor:colors.bg }}>
-        {renderLogo}
-        <p className={`text-[9px] uppercase tracking-[0.5em] ${typo}`} style={{ color:`${colors.text}55` }}>{studio}</p>
-        <div>
-          <div className="w-10 h-[1px] mb-6" style={{ backgroundColor:colors.accent }} />
-          <h1 className={`text-4xl md:text-5xl leading-tight ${typo}`} style={{ color:colors.text }}>{name}</h1>
-          {descriptionPosition === 'bottom' && renderDescription && <div className="mt-6 max-w-sm">{renderDescription}</div>}
-          {descriptionPosition === 'side' && renderDescription && <div className="mt-6 max-w-sm">{renderDescription}</div>}
-        </div>
-        <p className={`text-[9px] uppercase tracking-[0.4em] ${typo}`} style={{ color:`${colors.text}33` }}>Collection</p>
-      </div>
-      <div className="flex-1 relative overflow-hidden">
-        {img && <img src={img} className="w-full h-full object-cover" alt="" />}
-      </div>
-    </div>
-  )
-
-  /* ── VINTAGE ── */
-  if (coverStyle === 'Vintage') return (
-    <CoverBg src={img} overlay="bg-[#3d2b1f]/50">
-      {renderLogo}
-      <div className="flex items-center justify-center h-full px-8">
-        <div className="text-center">
-          <p className={`text-white/40 text-[8px] uppercase tracking-[0.8em] mb-6 ${typo}`}>— {studio} —</p>
-          <div className="w-8 h-[1px] bg-white/35 mx-auto mb-7" />
-          <h1 className={`text-5xl md:text-7xl text-white ${typo}`}>{name}</h1>
-          <div className="w-8 h-[1px] bg-white/35 mx-auto mt-7 mb-6" />
-          {renderDescription && <div className="mb-6">{renderDescription}</div>}
-          <p className={`text-white/35 text-[8px] uppercase tracking-[0.8em] ${typo}`}>Est. Collection</p>
-        </div>
-      </div>
-    </CoverBg>
-  )
-
-  /* ── FRAME ── */
-  if (coverStyle === 'Frame') return (
-    <div className="relative w-full h-screen overflow-hidden bg-white p-6 md:p-12">
-      <div className="relative w-full h-full overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.25)]">
-        {img && <img src={img} className="w-full h-full object-cover" alt="" />}
-        {renderLogo}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-8 md:p-12">
-          <p className={`text-white/50 text-[9px] uppercase tracking-[0.5em] mb-3 ${typo}`}>{studio}</p>
-          <h1 className={`text-4xl md:text-6xl text-white ${typo}`}>{name}</h1>
-          {descriptionPosition === 'bottom' && renderDescription && <div className="mt-4 max-w-xl">{renderDescription}</div>}
-        </div>
-      </div>
-    </div>
-  )
-
-  /* ── DIVIDER ── */
-  if (coverStyle === 'Divider') return (
-    <div className="flex flex-col-reverse md:flex-row w-full h-screen">
-      <div className="flex-1 relative overflow-hidden">
-        {img && <img src={img} className="w-full h-full object-cover" alt="" />}
-      </div>
-      <div className="flex flex-col justify-between p-10 md:p-16 md:w-[38%] shrink-0 relative"
-        style={{ backgroundColor:colors.bg }}>
-        {renderLogo}
-        <p className={`text-[9px] uppercase tracking-[0.5em] ${typo}`} style={{ color:`${colors.text}40` }}>Collection</p>
-        <div>
-          <h1 className={`text-4xl md:text-5xl leading-tight mb-6 ${typo}`} style={{ color:colors.text }}>{name}</h1>
-          <div className="w-10 h-[1px]" style={{ backgroundColor:colors.accent }} />
-          {descriptionPosition === 'bottom' && renderDescription && <div className="mt-6 max-w-sm">{renderDescription}</div>}
-        </div>
-        <p className={`text-[9px] uppercase tracking-[0.4em] ${typo}`} style={{ color:`${colors.text}40` }}>{studio}</p>
-      </div>
-    </div>
-  )
-
-  /* ── JOURNAL ── */
-  if (coverStyle === 'Journal') return (
-    <CoverBg src={img} overlay="bg-gradient-to-br from-black/55 via-black/10 to-transparent">
-      {renderLogo}
-      <div className="flex flex-col justify-start h-full p-10 md:p-16 pt-16 md:pt-20">
-        <p className={`text-white/45 text-[9px] uppercase tracking-[0.5em] mb-3 ${typo}`}>{studio}</p>
-        <div className="w-10 h-[1px] bg-white/40 mb-5" />
-        <h1 className={`text-4xl md:text-6xl text-white leading-tight max-w-md ${typo}`}>{name}</h1>
-        {renderDescription && <div className="mt-5 max-w-md">{renderDescription}</div>}
-      </div>
-    </CoverBg>
-  )
-
-  /* ── STAMP ── */
-  if (coverStyle === 'Stamp') return (
-    <CoverBg src={img} overlay="bg-black/45">
-      {renderLogo}
-      <div className="flex items-center justify-center h-full">
-        <div className="border-2 border-white/60 rounded-full w-60 h-60 md:w-80 md:h-80 flex flex-col items-center justify-center text-center p-8"
-          style={{ boxShadow:'0 0 0 1px rgba(255,255,255,0.15), 0 0 0 12px rgba(255,255,255,0.04), 0 0 80px rgba(0,0,0,0.4)' }}>
-          <div className="w-6 h-[1px] bg-white/45 mb-5" />
-          <h1 className={`text-lg md:text-2xl text-white leading-tight ${typo}`}>{name}</h1>
-          <div className="w-6 h-[1px] bg-white/45 mt-5 mb-4" />
-          <p className={`text-white/40 text-[8px] uppercase tracking-[0.4em] ${typo}`}>{studio}</p>
-          {renderDescription && <div className="mt-4 max-w-[16rem]">{renderDescription}</div>}
-        </div>
-      </div>
-    </CoverBg>
-  )
-
-  return null
-}
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 
@@ -634,65 +343,34 @@ export default function PublicGalleryView() {
         </div>
       )}
 
-      {/* COVER */}
-      {coverStyle !== 'None' && (
-        <Cover gallery={gallery} coverStyle={coverStyle} typo={typo} colors={colors} theme={gallery.theme} />
-      )}
-
-      {/* NAV STICKY */}
-      <nav
-        className="sticky top-0 z-50 flex items-center justify-between px-5 md:px-10 h-[68px] border-b transition-all duration-500"
-        style={{ backgroundColor:`${colors.bg}E8`, borderColor:colors.border, backdropFilter:'blur(18px)' }}
-      >
-        {/* LEFT — avatar + nom galerie */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border"
-            style={{ borderColor:colors.border, backgroundColor:colors.border }}>
-            {gallery.profiles?.avatar_url
-              ? <img src={gallery.profiles.avatar_url} className="w-full h-full object-cover" alt="" />
-              : <span className="w-full h-full flex items-center justify-center text-[10px] font-black" style={{ opacity:0.4 }}>
-                  {gallery.profiles?.full_name?.charAt(0) || 'S'}
-                </span>
-            }
-          </div>
-          <div className="flex flex-col gap-1 leading-none">
-            <span className={`text-[10px] font-medium uppercase tracking-[0.12em] ${typo}`} style={{ color:colors.text }}>{gallery.event_name}</span>
-            {gallery.profiles?.full_name && (
-              <span className={`text-[8px] uppercase tracking-[0.14em] ${typo}`} style={{ color:`${colors.text}55` }}>{gallery.profiles.full_name}</span>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT — actions */}
-        <div className="flex items-center gap-1 md:gap-2">
-          {canFavorite && <button onClick={() => favoriteGallery()} aria-label="Ajouter l’album aux favoris" className="gallery-action" style={{ color:albumFavorited ? colors.accent : colors.text }}><Heart size={16} fill={albumFavorited ? 'currentColor' : 'none'} strokeWidth={1.5} />{navStyle === 'Icon & Text' && <span>Album favori</span>}</button>}
-          {canDownload && <button onClick={() => downloadGallery()} aria-label="Télécharger l’album complet" className="gallery-action" style={{ color:colors.text }}><Download size={16} strokeWidth={1.5} />{navStyle === 'Icon & Text' && <span>Album complet</span>}</button>}
-          <button onClick={shareGallery} aria-label="Partager la galerie" className="gallery-action" style={{ color:colors.text }}><Share2 size={16} strokeWidth={1.5} />{navStyle === 'Icon & Text' && <span>Partager</span>}</button>
-        </div>
-      </nav>
-
-      {/* GRID PHOTOS */}
-      <main className={gridSpacing === 'Regular' ? 'py-1' : 'px-4 py-10 md:px-10 md:py-16'}>
-        <div className={gridSpacing === 'Regular' ? 'px-4 md:px-8 pb-6 flex items-end justify-between' : 'max-w-[1600px] mx-auto pb-8 flex items-end justify-between'}>
-          <div><p className={`text-[9px] uppercase tracking-[0.28em] ${typo}`} style={{ color:`${colors.text}55` }}>La collection</p><p className="mt-2 text-sm" style={{ color:`${colors.text}80` }}>{photos.length} {photos.length > 1 ? 'souvenirs' : 'souvenir'} à découvrir</p></div>
-          {selected.length > 0 && <button onClick={() => setSelected([])} className="text-[9px] uppercase tracking-[0.18em]" style={{ color:colors.accent }}>Effacer la sélection</button>}
-        </div>
-        <div className={`${gridConfig.columns[thumbnailSize]} ${gridConfig.gap[gridSpacing]} ${gridSpacing === 'Large' ? 'max-w-[1600px] mx-auto' : ''}`}>
-          {photos.map((p, i) => (
-            <article key={p.id || i} className="break-inside-avoid overflow-hidden group relative gallery-photo">
-              <img
-                src={p.url}
-                className="w-full h-auto object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-[1.025]"
-                alt={p.name || `${gallery.event_name} — photo ${i + 1}`}
-                loading="lazy"
-              />
-              <button onClick={() => setActivePhoto(i)} className="absolute inset-0 z-10 cursor-zoom-in" aria-label={`Voir ${p.name || `la photo ${i + 1}`}`} />
-              <button onClick={(event) => { event.stopPropagation(); togglePhoto(p) }} className={`absolute top-3 right-3 z-20 h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 ${selected.includes(p.id || p.url) ? 'opacity-100 scale-100' : 'opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100'}`} style={{ backgroundColor:selected.includes(p.id || p.url) ? colors.accent : 'rgba(255,255,255,.9)', color:selected.includes(p.id || p.url) ? '#fff' : colors.text }} aria-label="Sélectionner cette photo">{selected.includes(p.id || p.url) ? <Check size={15} /> : <Heart size={15} strokeWidth={1.5} />}</button>
-            </article>
-          ))}
-        </div>
-        {photos.length === 0 && <div className="py-24 text-center text-sm opacity-50">Les photos arrivent bientôt.</div>}
-      </main>
+      {/* GALERIE COMPLETE IDENTIQUE AU PREVIEW DU DESIGN */}
+      <GalleryPreview
+        gallery={gallery}
+        photos={photos}
+        theme={{
+          ...theme,
+          palette,
+          typography,
+          coverStyle,
+          thumbnailSize,
+          gridSpacing,
+          navStyle,
+          show_logo: theme.show_logo ?? true,
+          show_description: theme.show_description ?? true,
+          title_position: (theme.title_position as any) || 'center',
+          logo_position: (theme.logo_position as any) || 'top-left',
+          description_position: (theme.description_position as any) || 'bottom',
+          cover_description: (theme.cover_description as any) || gallery.profiles?.description || '',
+        }}
+        showBrowserFrame={false}
+        isFavorited={albumFavorited}
+        selectedPhotos={selected}
+        onPhotoClick={(i) => setActivePhoto(i)}
+        onPhotoSelect={(p) => togglePhoto(p)}
+        onFavorite={() => favoriteGallery()}
+        onDownload={() => downloadGallery()}
+        onShare={shareGallery}
+      />
 
       {/* FOOTER */}
       <footer className="py-24 flex flex-col items-center gap-4 border-t" style={{ borderColor:colors.border }}>

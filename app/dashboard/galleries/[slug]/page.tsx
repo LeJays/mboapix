@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { saveGalleryData } from '@/lib/gallery-save'
 import { 
   ChevronLeft,Plus,Image as ImageIcon,Eye,UploadCloud,Loader2,X,Check,LayoutGrid,Paintbrush,
-  Settings,Share2,Monitor,Type,Heart,Download,Share,Play
+  Settings,Share2,Monitor,Type,Heart,Download,Share,Play,ExternalLink
 } from 'lucide-react'
+import GalleryPreview from '@/components/GalleryPreview'
 
 
 
@@ -407,6 +408,9 @@ const handleSettingChange = (key: string, value: any) => {
       }
       await supabase.from('gallery_photos').delete().eq('id', photo.id);
       setPhotos(prev => prev.filter(p => p.id !== photo.id));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('cloud-storage-change'))
+      }
     } catch (error) {
       console.error("Erreur suppression:", error);
     }
@@ -472,6 +476,9 @@ const handleSettingChange = (key: string, value: any) => {
     }
     
     setUploading(false)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('cloud-storage-change'))
+    }
     setTimeout(() => { setIsToastVisible(false); setUploadProgress({}); }, 3000)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -658,160 +665,32 @@ const handleSettingChange = (key: string, value: any) => {
         : 'Vidéos téléchargées'
     : selectedActivity.title;
   const handlePreview = () => {
-  const slugToUse = settings.slug || gallery?.slug || params.slug
-  if (slugToUse) {
-    window.open(`/gallery/${slugToUse}?preview=true`, '_blank');
-  } else {
-    alert("Veuillez d'abord configurer un slug dans l'onglet général.");
-  }
-};
+    setFullScreenPreview(true);
+  };
 
-  const renderDesignPreview = () => (
-    <div 
-      className="w-full max-w-7xl min-h-[90vh] shadow-2xl overflow-hidden flex flex-col border transition-all duration-700 mb-20 rounded-3xl"
-      style={{ 
-        backgroundColor: colorConfigs[palette].bg, 
-        color: colorConfigs[palette].text,
-        borderColor: colorConfigs[palette].border 
-      }}
-    >
-      <div className="h-8 border-b flex items-center px-4 gap-1.5 shrink-0" style={{ borderColor: colorConfigs[palette].border }}>
-        <div className="w-2 h-2 rounded-full opacity-20" style={{ backgroundColor: colorConfigs[palette].text }} />
-        <div className="w-2 h-2 rounded-full opacity-20" style={{ backgroundColor: colorConfigs[palette].text }} />
-        <div className="w-2 h-2 rounded-full opacity-20" style={{ backgroundColor: colorConfigs[palette].text }} />
-      </div>
+  const currentPreviewTheme = {
+    palette,
+    typography,
+    coverStyle,
+    thumbnailSize,
+    gridSpacing,
+    navStyle,
+    show_logo: showCoverLogo,
+    show_description: showCoverDescription,
+    title_position: coverTitlePosition,
+    logo_position: coverLogoPosition,
+    description_position: coverDescriptionPosition,
+    cover_description: coverDescriptionText,
+  };
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        {coverStyle !== 'None' && (
-          <div className={`relative w-full transition-all duration-700 ease-in-out
-            ${['Center', 'Left', 'Stripe', 'Outline', 'Classic', 'Love'].includes(coverStyle) ? 'h-[80vh]' : ''}
-            ${coverStyle === 'Novel' ? 'h-[70vh] flex flex-row-reverse' : ''}
-            ${coverStyle === 'Vintage' ? 'h-[85vh] flex flex-col' : ''}
-            ${coverStyle === 'Frame' ? 'h-[80vh] p-10' : ''}
-            ${coverStyle === 'Divider' ? 'h-[80vh] flex' : ''}
-            ${coverStyle === 'Journal' ? 'h-[80vh] flex p-12 gap-12' : ''}
-            ${coverStyle === 'Stamp' ? 'h-[70vh] flex flex-col items-center justify-center' : ''}
-          `}>
-            <div className={`relative overflow-hidden transition-all duration-700
-              ${['Center', 'Left', 'Stripe', 'Outline', 'Classic', 'Love', 'Stamp'].includes(coverStyle) ? 'w-full h-full' : ''}
-              ${coverStyle === 'Novel' ? 'w-1/2 h-full' : ''}
-              ${coverStyle === 'Vintage' ? 'w-full h-3/4' : ''}
-              ${coverStyle === 'Frame' ? 'w-full h-full shadow-2xl' : ''}
-              ${coverStyle === 'Divider' ? 'w-1/2 h-full' : ''}
-              ${coverStyle === 'Journal' ? 'w-2/3 h-full' : ''}
-            `}>
-              {gallery?.cover_url && <img src={gallery.cover_url} className="w-full h-full object-cover" alt="" />}
-
-              {showCoverLogo && gallery?.profiles?.avatar_url && (
-                <div
-                  className={`absolute z-20 ${
-                    coverLogoPosition === 'top-center' ? 'top-8 left-1/2 -translate-x-1/2' :
-                    coverLogoPosition === 'bottom-left' ? 'bottom-8 left-8' : 'top-8 left-8'
-                  }`}
-                >
-                  <div className="w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-full border border-white/30 bg-white/10 backdrop-blur-md shadow-lg">
-                    <img src={gallery.profiles.avatar_url} alt="Logo du studio" className="w-full h-full object-cover" />
-                  </div>
-                </div>
-              )}
-
-              <div className={`absolute inset-0 flex items-center p-12
-                ${coverStyle === 'Center' ? `${coverTitlePosition === 'left' ? 'justify-start text-left' : 'justify-center text-center'} bg-black/20` : ''}
-                ${coverStyle === 'Left' ? 'justify-start text-left bg-black/10' : ''}
-                ${coverStyle === 'Stripe' ? `${coverTitlePosition === 'left' ? 'justify-start text-left' : 'justify-center text-center'} border-y-4 border-white/30 m-20 bg-black/20` : ''}
-                ${coverStyle === 'Outline' ? `${coverTitlePosition === 'left' ? 'justify-start text-left' : 'justify-center text-center'} bg-black/10` : ''}
-                ${coverStyle === 'Love' ? 'justify-center text-center bg-white/10 backdrop-blur-[2px]' : ''}
-              `}>
-                {['Center', 'Left', 'Stripe', 'Outline', 'Classic', 'Frame'].includes(coverStyle) && (
-                  <div className={coverStyle === 'Outline' ? 'border-2 border-white p-10' : ''}>
-                    <div className={coverDescriptionPosition === 'side' ? 'flex items-end gap-6' : ''}>
-                      <h4 className={`text-white uppercase drop-shadow-2xl ${typographyConfig[typography]} ${coverStyle === 'Outline' ? 'text-5xl' : 'text-6xl'} ${coverTitlePosition === 'left' ? 'text-left' : 'text-center'}`}>
-                        {gallery?.event_name}
-                      </h4>
-                      {coverDescriptionPosition === 'side' && showCoverDescription && coverDescriptionText.trim() && (
-                        <p className="max-w-[220px] text-sm text-white/75 leading-relaxed">{coverDescriptionText.trim()}</p>
-                      )}
-                    </div>
-                    {coverDescriptionPosition !== 'side' && showCoverDescription && coverDescriptionText.trim() && (
-                      <p className="mt-5 text-sm text-white/75 leading-relaxed">{coverDescriptionText.trim()}</p>
-                    )}
-                  </div>
-                )}
-                {coverStyle === 'Love' && (
-                  <div className="flex flex-col items-center gap-4">
-                    <h4 className={`text-white uppercase text-[12vw] leading-none opacity-90 drop-shadow-2xl ${typographyConfig[typography]}`}>LOVE</h4>
-                    {showCoverDescription && coverDescriptionText.trim() && (
-                      <p className="max-w-xl text-sm text-white/75 leading-relaxed">{coverDescriptionText.trim()}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {['Novel', 'Vintage', 'Divider', 'Journal', 'Stamp'].includes(coverStyle) && (
-              <div className="flex flex-col items-center justify-center p-10 transition-colors" style={{ width: coverStyle === 'Novel' || coverStyle === 'Divider' ? '50%' : '100%', height: coverStyle === 'Vintage' ? '25%' : '100%' }}>
-                {coverStyle === 'Stamp' && <div className="w-16 h-16 overflow-hidden mb-4 border-2 p-1" style={{ borderColor: colorConfigs[palette].accent }}><img src={gallery?.cover_url} className="w-full h-full object-cover" /></div>}
-                <h4 className={`uppercase ${typographyConfig[typography]} ${coverStyle === 'Journal' ? 'text-4xl' : 'text-5xl'}`}>{gallery?.event_name}</h4>
-                <div className="w-12 h-1 mt-4" style={{ backgroundColor: colorConfigs[palette].accent }} />
-                <p className={`text-[10px] opacity-60 uppercase mt-2 ${typographyConfig[typography]}`}>{gallery?.profiles?.full_name}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div 
-          className="sticky top-0 z-20 flex items-center justify-between px-8 py-4 border-b backdrop-blur-md transition-all duration-500"
-          style={{ 
-            backgroundColor: `${colorConfigs[palette].bg}E6`,
-            borderColor: colorConfigs[palette].border 
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 border" style={{ borderColor: colorConfigs[palette].border, backgroundColor: colorConfigs[palette].border }}>
-              {gallery?.profiles?.avatar_url ? (
-                <img src={gallery.profiles.avatar_url} className="w-full h-full object-cover" alt="Logo" />
-              ) : (
-                <span className="text-[10px] font-black opacity-40">{gallery?.profiles?.full_name?.charAt(0) || 'P'}</span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <h3 className={`text-[10px] uppercase ${typographyConfig[typography]}`}>{gallery?.event_name}</h3>
-              <span className={`text-[7px] opacity-60 uppercase ${typographyConfig[typography]}`}>{gallery?.profiles?.full_name || 'STUDIO'}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-5">
-            <button className="flex items-center gap-2 transition-colors hover:opacity-70" style={{ color: colorConfigs[palette].accent }}>
-              <Heart size={16} />
-              {navStyle === 'Icon & Text' && <span className="text-[9px] font-bold uppercase tracking-wider">Favoris</span>}
-            </button>
-            <button className="flex items-center gap-2 transition-colors hover:opacity-70" style={{ color: colorConfigs[palette].accent }}>
-              <Download size={16} />
-              {navStyle === 'Icon & Text' && <span className="text-[9px] font-bold uppercase tracking-wider">Download</span>}
-            </button>
-            <button className="flex items-center gap-2 transition-colors hover:opacity-70" style={{ color: colorConfigs[palette].accent }}>
-              <Share size={16} />
-              {navStyle === 'Icon & Text' && <span className="text-[9px] font-bold uppercase tracking-wider">Share</span>}
-            </button>
-          </div>
-        </div>
-
-        <div className={`transition-all duration-500 ${gridSpacing === 'Regular' ? 'p-1 md:p-2' : 'p-8 md:p-16'}`}>
-          <div className={`transition-all duration-500 ${gridConfig.columns[thumbnailSize]} ${gridConfig.gap[gridSpacing]}`}>
-            {photos.map((p, i) => (
-              <div key={i} className="break-inside-avoid overflow-hidden group mb-1">
-                <img 
-                  src={p.url} 
-                  className="w-full h-auto object-cover opacity-95 group-hover:opacity-100 transition-all duration-700 hover:scale-105" 
-                  alt="" 
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  const renderDesignPreview = (showFrame = true) => (
+    <GalleryPreview
+      gallery={gallery}
+      photos={photos}
+      theme={currentPreviewTheme}
+      showBrowserFrame={showFrame}
+    />
+  );
 
   const handlePublish = async () => {
     if (!gallery?.id) return
@@ -1789,8 +1668,8 @@ const handleSettingChange = (key: string, value: any) => {
         <div className="fixed inset-0 z-[200] bg-gray-50 dark:bg-[#030303] flex flex-col animate-in fade-in duration-300">
           
           {/* Barre de contrôle supérieure */}
-          <header className="h-16 border-b border-gray-100 dark:border-white/5 px-6 flex items-center justify-between bg-white dark:bg-[#080808] shrink-0">
-            <div className="flex items-center gap-2">
+          <header className="h-16 border-b border-gray-100 dark:border-white/5 px-6 flex items-center justify-between bg-white dark:bg-[#080808] shrink-0 z-30">
+            <div className="flex items-center gap-3">
               <div className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest bg-orange-600 text-white animate-pulse`}>
                 Mode Aperçu
               </div>
@@ -1798,17 +1677,32 @@ const handleSettingChange = (key: string, value: any) => {
                 {gallery?.event_name}
               </h2>
             </div>
-            <button 
-              onClick={() => setFullScreenPreview(false)}
-              className="flex items-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
-            >
-              <X size={16} strokeWidth={3} />
-              Quitter l'aperçu
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const slugToUse = settings.slug || gallery?.slug || params.slug;
+                  if (slugToUse) {
+                    window.open(`/gallery/${slugToUse}?preview=true`, '_blank');
+                  }
+                }}
+                className="flex items-center gap-2 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
+                title="Ouvrir dans un nouvel onglet"
+              >
+                <ExternalLink size={14} />
+                <span>Nouvel onglet</span>
+              </button>
+              <button 
+                onClick={() => setFullScreenPreview(false)}
+                className="flex items-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+              >
+                <X size={15} strokeWidth={3} />
+                Quitter l'aperçu
+              </button>
+            </div>
           </header>
 
-          <div className="flex-1 p-6 lg:p-12 flex flex-col items-center overflow-y-auto scrollbar-hide">
-            {renderDesignPreview()}
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            {renderDesignPreview(false)}
           </div>
         </div>
       )}

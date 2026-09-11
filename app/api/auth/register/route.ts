@@ -3,13 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 
 // On initialise Supabase côté serveur
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Utilise la clé Service Role pour contourner les RLS si besoin
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
 );
 
 export async function POST(request: Request) {
   try {
     const { name, email, phone, password } = await request.json();
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Service d'authentification non configuré (Supabase requis)" }, { status: 503 });
+    }
 
     // 1. Création dans Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({

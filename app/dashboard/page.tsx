@@ -37,6 +37,20 @@ export default function Dashboard() {
         totalViews: activityData?.reduce((acc: number, curr: any) => acc + Number(curr.vues), 0) || 0 
       })
       setChartData(activityData || [])
+
+      // Synchronisation du stockage cloud réel des images du profil
+      try {
+        const storageRes = await fetch(`/api/storage?userId=${encodeURIComponent(user.id)}`)
+        if (storageRes.ok) {
+          const sData = await storageRes.json()
+          if (sData.usedBytes !== undefined) {
+            setProfile((prev: any) => ({ ...prev, storage_used: sData.usedBytes, storage_limit: sData.limitBytes }))
+          }
+        }
+      } catch (sErr) {
+        console.warn('Erreur lecture stockage:', sErr)
+      }
+
       setLoading(false)
     }
     loadAllData()
@@ -45,7 +59,9 @@ export default function Dashboard() {
   const used = Number(profile?.storage_used) || 0
   const limit = Number(profile?.storage_limit) || 2147483648 
   const storagePercent = limit > 0 ? Math.min(Math.round((used / limit) * 100), 100) : 0
-  const storageUsedGB = (used / (1024 ** 3)).toFixed(2)
+  const storageUsedDisplay = used >= 1024 ** 3
+    ? `${(used / (1024 ** 3)).toFixed(2)} Go utilisés`
+    : `${(used / (1024 ** 2)).toFixed(1)} Mo utilisés`
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#050505]">
@@ -54,12 +70,13 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505] flex transition-colors duration-300 overflow-x-hidden">
+    <div className="h-screen bg-[#fafafa] dark:bg-[#050505] flex transition-colors duration-300 overflow-hidden">
       
-      {/* UTILISATION DE LA SIDEBAR EXTERNE */}
+      {/* SIDEBAR STATIQUE */}
       <Sidebar profile={profile} />
 
-      <main className="flex-1 w-full lg:max-w-7xl mx-auto p-4 pt-20 sm:p-6 md:p-10 lg:p-16 lg:pt-16">
+      <main className="flex-1 h-screen overflow-y-auto w-full p-4 pt-20 sm:p-6 md:p-10 lg:p-16 lg:pt-16">
+        <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 text-left">
           <div>
             <span className="px-3 py-1 bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-4 inline-block">
@@ -77,7 +94,7 @@ export default function Dashboard() {
 
         {/* CARDS DE STATS RESTE ICI CAR ELLES SONT PROPRES AU DASHBOARD */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12">
-          <StatMini label="Stockage" value={`${storagePercent}%`} sub={`${storageUsedGB} Go utilisés`} />
+          <StatMini label="Stockage" value={`${storagePercent}%`} sub={storageUsedDisplay} />
           <StatMini label="Audience" value={stats.totalViews.toLocaleString()} sub="Vues cumulées" />
           <StatMini label="Galeries" value={stats.galleries.toString()} sub="Projets actifs" color="text-orange-600" />
         </div>
@@ -103,6 +120,7 @@ export default function Dashboard() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+        </div>
         </div>
       </main>
 

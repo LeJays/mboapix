@@ -124,6 +124,9 @@ export default function DashboardSettingsPage() {
           console.warn('Impossible d’enregistrer le favicon dans profiles:', error)
         }
       }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('cloud-storage-change'))
+      }
     } catch (error) {
       console.error(`Erreur upload ${kind}:`, error)
       alert(`L’upload du ${kind === 'logo' ? 'logo' : 'favicon'} a échoué.`)

@@ -1,14 +1,17 @@
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 
-const s3 = new S3Client({
-  endpoint: `https://${process.env.NEXT_PUBLIC_B2_ENDPOINT}`,
-  credentials: {
-    accessKeyId: process.env.B2_KEY_ID!,
-    secretAccessKey: process.env.B2_APPLICATION_KEY!,
-  },
-  region: process.env.NEXT_PUBLIC_B2_REGION,
-});
+function getS3Client() {
+  const endpoint = process.env.NEXT_PUBLIC_B2_ENDPOINT;
+  return new S3Client({
+    endpoint: endpoint ? `https://${endpoint}` : undefined,
+    credentials: {
+      accessKeyId: process.env.B2_KEY_ID || '',
+      secretAccessKey: process.env.B2_APPLICATION_KEY || '',
+    },
+    region: process.env.NEXT_PUBLIC_B2_REGION || 'us-east-005',
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +24,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nom de fichier manquant" }, { status: 400 });
     }
 
+    if (!process.env.NEXT_PUBLIC_B2_ENDPOINT || !bucketName) {
+      return NextResponse.json({ success: true, message: "Suppression simulée (B2 non configuré)" });
+    }
+
+    const s3 = getS3Client();
     const command = new DeleteObjectCommand({
       Bucket: bucketName,
       Key: fileName, // Doit être le chemin relatif (ex: id/dossier/image.jpg)

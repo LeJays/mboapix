@@ -9,21 +9,108 @@ import {
   LogOut, 
   Zap,
   Menu,
-  X 
+  X,
+  Cloud
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
-export default function Sidebar({ profile }: { profile: any }) {
+export default function Sidebar({ profile: initialProfile }: { profile?: any }) {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [fetchedProfile, setFetchedProfile] = useState<any>(null)
+  const profile = initialProfile || fetchedProfile
 
-  const used = Number(profile?.storage_used) || 0
-  const limit = Number(profile?.storage_limit) || 2147483648 
-  const storagePercent = Math.min(Math.round((used / limit) * 100), 100)
-  const storageUsedGB = (used / (1024 ** 3)).toFixed(2)
+  const [storageData, setStorageData] = useState<{
+    usedBytes: number
+    limitBytes: number
+    storagePercent: number
+    usedFormatted: string
+    limitFormatted: string
+    photosCount?: number
+    cloudSource?: string
+  } | null>(null)
+  const [loadingStorage, setLoadingStorage] = useState(false)
+
+  // Fonction pour interroger le stockage cloud réel des images du profil
+  const fetchCloudStorage = useCallback(async (userId?: string) => {
+    const targetId = userId || profile?.id
+    if (!targetId) return
+
+    try {
+      setLoadingStorage(true)
+      const res = await fetch(`/api/storage?userId=${encodeURIComponent(targetId)}`, {
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setStorageData({
+          usedBytes: data.usedBytes ?? 0,
+          limitBytes: data.limitBytes ?? 2147483648,
+          storagePercent: data.storagePercent ?? 0,
+          usedFormatted: data.usedFormatted ?? '0 Mo',
+          limitFormatted: data.limitFormatted ?? '2 Go',
+          photosCount: data.photosCount,
+          cloudSource: data.cloudSource,
+        })
+      }
+    } catch (err) {
+      console.warn('Erreur lecture stockage cloud:', err)
+    } finally {
+      setLoadingStorage(false)
+    }
+  }, [profile?.id])
+
+  useEffect(() => {
+    let isMounted = true
+    async function init() {
+      let uid = profile?.id
+      if (!uid) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          uid = user.id
+          if (!profile && isMounted) {
+            const { data } = await supabase.from('profiles').select('*').eq('id', uid).single()
+            if (data && isMounted) setFetchedProfile(data)
+          }
+        }
+      }
+      if (uid && isMounted) {
+        fetchCloudStorage(uid)
+      }
+    }
+    init()
+
+    const handleStorageChange = () => {
+      fetchCloudStorage()
+    }
+    window.addEventListener('cloud-storage-change', handleStorageChange)
+    return () => {
+      isMounted = false
+      window.removeEventListener('cloud-storage-change', handleStorageChange)
+    }
+  }, [fetchCloudStorage, profile])
+
+  // Valeurs calculées : priorité aux données cloud lues en direct
+  const usedBytes = storageData ? storageData.usedBytes : (Number(profile?.storage_used) || 0)
+  const limitBytes = storageData ? storageData.limitBytes : (Number(profile?.storage_limit) || 2147483648)
+  const storagePercent = storageData
+    ? storageData.storagePercent
+    : (limitBytes > 0 ? Math.min(Math.round((usedBytes / limitBytes) * 100), 100) : 0)
+
+  const formatHumanBytes = (bytes: number) => {
+    if (bytes <= 0) return '0 Mo'
+    const gb = bytes / (1024 ** 3)
+    const mb = bytes / (1024 ** 2)
+    if (gb >= 1) return `${gb.toFixed(2)} Go`
+    return `${mb.toFixed(1)} Mo`
+  }
+
+  const formattedUsed = storageData?.usedFormatted || formatHumanBytes(usedBytes)
+  const formattedLimit = storageData?.limitFormatted || formatHumanBytes(limitBytes)
+  const percentDisplay = usedBytes > 0 && storagePercent === 0 ? '<1%' : `${storagePercent}%`
 
   const menuItems = [
     { icon: <LayoutDashboard size={18}/>, label: "Mon Studio", href: "/dashboard" },
@@ -31,11 +118,11 @@ export default function Sidebar({ profile }: { profile: any }) {
     { icon: <Settings size={18}/>, label: "Réglages", href: "/dashboard/settings" },
   ]
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-16 px-2">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
+      <div className="flex items-center gap-3 mb-12 px-2 shrink-0">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 shrink-0">
           <Zap size={20} fill="currentColor" />
         </div>
         <span className="text-xl font-black tracking-tighter uppercase italic dark:text-white">
@@ -44,7 +131,7 @@ export default function Sidebar({ profile }: { profile: any }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
         {menuItems.map((item) => (
           <Link 
             key={item.href}
@@ -61,26 +148,37 @@ export default function Sidebar({ profile }: { profile: any }) {
         ))}
       </nav>
 
-      {/* Stockage */}
-      <div className="mb-8 px-4">
-        <div className="flex justify-between items-end mb-2">
-          <p className="text-[9px] font-black uppercase tracking-[2px] text-gray-400">Espace</p>
-          <p className="text-[10px] font-bold dark:text-white">{storagePercent}%</p>
+      {/* État du stockage Cloud */}
+      <div className="my-6 px-4 py-4 rounded-2xl bg-gray-50/75 dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.05] shrink-0">
+        <div className="flex justify-between items-center mb-2.5">
+          <div className="flex items-center gap-1.5">
+            <Cloud size={13} className="text-orange-600" />
+            <p className="text-[9px] font-black uppercase tracking-[1.5px] text-gray-500 dark:text-gray-400">
+              Stockage Cloud
+            </p>
+          </div>
+          <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+            {loadingStorage && !storageData ? '...' : percentDisplay}
+          </span>
         </div>
-        <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+
+        <div className="h-2 w-full bg-gray-200/80 dark:bg-white/10 rounded-full overflow-hidden">
           <motion.div 
             initial={{ width: 0 }}
-            animate={{ width: `${storagePercent}%` }}
-            className={`h-full rounded-full bg-orange-600 shadow-[0_0_8px_rgba(234,88,12,0.3)]`}
+            animate={{ width: `${Math.max(usedBytes > 0 ? 2 : 0, storagePercent)}%` }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="h-full rounded-full bg-gradient-to-r from-orange-500 to-orange-600 shadow-[0_0_8px_rgba(234,88,12,0.35)]"
           />
         </div>
-        <p className="text-[8px] font-medium text-gray-500 mt-2 uppercase tracking-widest">
-          {storageUsedGB} Go utilisés
-        </p>
+
+        <div className="flex justify-between items-center mt-2.5 text-[8px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span>{formattedUsed}</span>
+          <span className="text-gray-400">sur {formattedLimit}</span>
+        </div>
       </div>
 
       {/* Logout */}
-      <div className="pt-8 border-t border-gray-100 dark:border-white/[0.05]">
+      <div className="pt-6 border-t border-gray-100 dark:border-white/[0.05] shrink-0">
         <button 
           onClick={() => supabase.auth.signOut().then(() => router.push('/connexion'))}
           className="flex items-center gap-3 text-gray-400 hover:text-red-500 transition-all text-xs font-bold uppercase tracking-widest px-4 py-2 w-full text-left"
@@ -96,12 +194,12 @@ export default function Sidebar({ profile }: { profile: any }) {
       {/* MOBILE TRIGGER */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md border-b border-gray-100 dark:border-white/[0.05] z-[60] px-6 flex items-center justify-between">
         <span className="font-black italic text-lg uppercase dark:text-white">Mboa<span className="text-orange-600">Pix</span></span>
-        <button onClick={() => setIsOpen(true)} className="p-2 dark:text-white"><Menu size={24}/></button>
+        <button onClick={() => setIsOpen(true)} className="p-2 dark:text-white" aria-label="Ouvrir le menu"><Menu size={24}/></button>
       </div>
 
-      {/* DESKTOP SIDEBAR */}
-      <aside className="w-72 border-r border-gray-100 dark:border-white/[0.05] hidden lg:flex flex-col p-8 sticky top-0 self-start h-screen bg-white dark:bg-[#050505] shrink-0">
-        <SidebarContent />
+      {/* DESKTOP SIDEBAR - STATIQUE ET FIXE */}
+      <aside className="w-72 border-r border-gray-100 dark:border-white/[0.05] hidden lg:flex flex-col p-8 h-screen sticky top-0 self-start bg-white dark:bg-[#050505] shrink-0 z-30 select-none overflow-hidden">
+        {renderSidebarContent()}
       </aside>
 
       {/* MOBILE DRAWER */}
@@ -116,10 +214,10 @@ export default function Sidebar({ profile }: { profile: any }) {
             <motion.div 
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-[280px] bg-white dark:bg-[#0d0d0d] z-[80] p-8 lg:hidden shadow-2xl"
+              className="fixed inset-y-0 left-0 w-[280px] bg-white dark:bg-[#0d0d0d] z-[80] p-8 lg:hidden shadow-2xl overflow-y-auto"
             >
-              <button onClick={() => setIsOpen(false)} className="absolute top-6 right-6 text-gray-400"><X size={24}/></button>
-              <SidebarContent />
+              <button onClick={() => setIsOpen(false)} className="absolute top-6 right-6 text-gray-400" aria-label="Fermer le menu"><X size={24}/></button>
+              {renderSidebarContent()}
             </motion.div>
           </>
         )}

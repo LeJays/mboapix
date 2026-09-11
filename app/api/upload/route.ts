@@ -6,15 +6,6 @@ export async function POST(request: Request) {
     const endpoint = process.env.NEXT_PUBLIC_B2_ENDPOINT;
     const bucketName = process.env.NEXT_PUBLIC_B2_BUCKET_NAME;
 
-    const s3 = new S3Client({
-      endpoint: `https://${endpoint}`,
-      credentials: {
-        accessKeyId: process.env.B2_KEY_ID!,
-        secretAccessKey: process.env.B2_APPLICATION_KEY!,
-      },
-      region: process.env.NEXT_PUBLIC_B2_REGION,
-    });
-
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const fileName = formData.get('fileName') as string;
@@ -22,6 +13,20 @@ export async function POST(request: Request) {
     if (!file || !fileName) {
       return NextResponse.json({ error: "Fichier manquant" }, { status: 400 });
     }
+
+    if (!endpoint || !bucketName || !process.env.B2_KEY_ID || !process.env.B2_APPLICATION_KEY) {
+      // Retourner une URL locale en simulation si B2 n'est pas encore configuré
+      return NextResponse.json({ url: `/api/media/${fileName}`, simulated: true });
+    }
+
+    const s3 = new S3Client({
+      endpoint: `https://${endpoint}`,
+      credentials: {
+        accessKeyId: process.env.B2_KEY_ID,
+        secretAccessKey: process.env.B2_APPLICATION_KEY,
+      },
+      region: process.env.NEXT_PUBLIC_B2_REGION,
+    });
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);

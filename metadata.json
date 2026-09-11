@@ -1,0 +1,6 @@
+{
+  "name": "MboaPix",
+  "description": "Créez des galeries de luxe, protégez vos œuvres et encaissez vos paiements par Mobile Money.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
